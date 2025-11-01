@@ -24,6 +24,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ArrowLeft, Plus, Trash2, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
 
@@ -64,6 +81,13 @@ export default function SurveyEditPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [showTypeDialog, setShowTypeDialog] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     if (session?.user && surveyId) {
@@ -123,6 +147,114 @@ export default function SurveyEditPage() {
     } catch (error) {
       console.error("Add question error:", error);
       alert("Failed to add question. Please try again.");
+    }
+  };
+
+  const handleUpdateQuestion = async (updatedQuestion: Question) => {
+    try {
+      const response = await fetch(
+        `/api/surveys/${surveyId}/questions/${updatedQuestion.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: updatedQuestion.type,
+            text: updatedQuestion.text,
+            options: updatedQuestion.options,
+            required: updatedQuestion.required,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update question");
+      }
+
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          questions: prev.questions.map((q) =>
+            q.id === updatedQuestion.id ? updatedQuestion : q
+          ),
+        };
+      });
+    } catch (error) {
+      console.error("Update question error:", error);
+      alert("Failed to update question. Please try again.");
+    }
+  };
+
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!confirm("Are you sure you want to delete this question?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/surveys/${surveyId}/questions/${questionId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete question");
+      }
+
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          questions: prev.questions.filter((q) => q.id !== questionId),
+        };
+      });
+    } catch (error) {
+      console.error("Delete question error:", error);
+      alert("Failed to delete question. Please try again.");
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id || !survey) {
+      return;
+    }
+
+    const oldIndex = survey.questions.findIndex((q) => q.id === active.id);
+    const newIndex = survey.questions.findIndex((q) => q.id === over.id);
+
+    const newQuestions = arrayMove(survey.questions, oldIndex, newIndex);
+
+    // Optimistically update UI
+    setSurvey((prev) => {
+      if (!prev) return prev;
+      return { ...prev, questions: newQuestions };
+    });
+
+    // Persist to backend
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/questions/reorder`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          questionIds: newQuestions.map((q) => q.id),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reorder questions");
+      }
+    } catch (error) {
+      console.error("Reorder questions error:", error);
+      alert("Failed to reorder questions. Please refresh the page.");
+      // Revert on error
+      fetchSurvey();
     }
   };
 
@@ -329,37 +461,28 @@ export default function SurveyEditPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                {survey.questions.map((question, index) => (
-                  <QuestionEditor
-                    key={question.id}
-                    question={question}
-                    index={index}
-                    onUpdate={(updatedQuestion) => {
-                      setSurvey((prev) => {
-                        if (!prev) return prev;
-                        return {
-                          ...prev,
-                          questions: prev.questions.map((q) =>
-                            q.id === updatedQuestion.id ? updatedQuestion : q
-                          ),
-                        };
-                      });
-                    }}
-                    onDelete={(questionId) => {
-                      setSurvey((prev) => {
-                        if (!prev) return prev;
-                        return {
-                          ...prev,
-                          questions: prev.questions.filter(
-                            (q) => q.id !== questionId
-                          ),
-                        };
-                      });
-                    }}
-                  />
-                ))}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={survey.questions.map((q) => q.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-4">
+                    {survey.questions.map((question, index) => (
+                      <QuestionEditor
+                        key={question.id}
+                        question={question}
+                        index={index}
+                        onUpdate={handleUpdateQuestion}
+                        onDelete={handleDeleteQuestion}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
           </CardContent>
         </Card>
@@ -380,6 +503,21 @@ function QuestionEditor({
   onDelete: (questionId: string) => void;
 }) {
   const [localQuestion, setLocalQuestion] = useState(question);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: question.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   const handleTextChange = (text: string) => {
     setLocalQuestion((prev) => ({ ...prev, text }));
@@ -404,10 +542,14 @@ function QuestionEditor({
   }, [localQuestion]);
 
   return (
-    <Card>
+    <Card ref={setNodeRef} style={style}>
       <CardHeader className="pb-4">
         <div className="flex items-start gap-4">
-          <div className="flex items-center text-gray-400">
+          <div
+            className="flex items-center text-gray-400 cursor-grab active:cursor-grabbing"
+            {...attributes}
+            {...listeners}
+          >
             <GripVertical className="h-5 w-5" />
           </div>
           <div className="flex-1 space-y-3">

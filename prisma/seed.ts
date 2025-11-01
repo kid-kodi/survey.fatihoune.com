@@ -5,15 +5,25 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Create test users
+  // Create test users with better-auth accounts
   const user1 = await prisma.user.upsert({
     where: { email: 'test@example.com' },
     update: {},
     create: {
+      id: 'test-user-1',
       email: 'test@example.com',
       name: 'Test User',
-      passwordHash: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsvqNu/1u', // "password"
       emailVerified: true,
+      updatedAt: new Date(),
+      Account: {
+        create: {
+          id: 'test-account-1',
+          accountId: 'test@example.com',
+          providerId: 'credential',
+          password: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsvqNu/1u', // "password"
+          updatedAt: new Date(),
+        },
+      },
     },
   });
 
@@ -21,10 +31,20 @@ async function main() {
     where: { email: 'demo@example.com' },
     update: {},
     create: {
+      id: 'test-user-2',
       email: 'demo@example.com',
       name: 'Demo User',
-      passwordHash: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsvqNu/1u', // "password"
       emailVerified: true,
+      updatedAt: new Date(),
+      Account: {
+        create: {
+          id: 'test-account-2',
+          accountId: 'demo@example.com',
+          providerId: 'credential',
+          password: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsvqNu/1u', // "password"
+          updatedAt: new Date(),
+        },
+      },
     },
   });
 

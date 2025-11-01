@@ -54,3 +54,4 @@ next-env.d.ts
 
 # uploads (user files)
 /public/uploads
+/docker/postgres_data/

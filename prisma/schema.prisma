@@ -1,6 +1,3 @@
-// This is your Prisma schema file
-// Learn more: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,66 +7,106 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  passwordHash  String?   // Null for OAuth-only users
-  emailVerified Boolean   @default(false)
-  googleId      String?   @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  surveys       Survey[]
-
-  @@index([email])
-  @@index([googleId])
-}
-
 model Survey {
-  id          String        @id @default(cuid())
+  id          String       @id @default(cuid())
   userId      String
-  uniqueId    String        @unique @default(cuid()) // 8-char short ID for public URLs
+  uniqueId    String       @unique @default(cuid())
   title       String
-  description String?       @db.Text
-  status      SurveyStatus  @default(draft)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  description String?
+  status      SurveyStatus @default(draft)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   publishedAt DateTime?
-
-  // Relations
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   questions   Question[]
   responses   Response[]
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([uniqueId])
   @@index([status])
 }
 
-enum SurveyStatus {
-  draft
-  published
-  archived
-}
-
 model Question {
   id        String       @id @default(cuid())
   surveyId  String
   type      QuestionType
-  text      String       @db.Text
-  options   Json         // QuestionOptions type - flexible JSON for different question types
+  text      String
+  options   Json
   required  Boolean      @default(false)
-  order     Int          // 0-indexed order within survey
-  logic     Json?        // ConditionalLogic type - nullable for questions without logic
+  order     Int
+  logic     Json?
   createdAt DateTime     @default(now())
-
-  // Relations
   survey    Survey       @relation(fields: [surveyId], references: [id], onDelete: Cascade)
 
   @@index([surveyId])
   @@index([surveyId, order])
+}
+
+model Response {
+  id          String   @id @default(cuid())
+  surveyId    String
+  answers     Json
+  submittedAt DateTime @default(now())
+  ipAddress   String?
+  userAgent   String?
+  survey      Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@index([surveyId])
+  @@index([surveyId, submittedAt])
+}
+
+model Account {
+  id           String    @id
+  userId       String
+  accountId    String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  idToken      String?
+  expiresAt    DateTime?
+  password     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
+  User         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model User {
+  id            String    @id
+  email         String    @unique
+  name          String
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime
+  image         String?
+  Account       Account[]
+  Session       Session[]
+  surveys       Survey[]
+
+  @@index([email])
+}
+
+enum SurveyStatus {
+  draft
+  published
+  archived
 }
 
 enum QuestionType {
@@ -79,19 +116,4 @@ enum QuestionType {
   checkbox
   dropdown
   yes_no
-}
-
-model Response {
-  id          String   @id @default(cuid())
-  surveyId    String
-  answers     Json     // Array of Answer objects - {questionId, answer}
-  submittedAt DateTime @default(now())
-  ipAddress   String?  // Optional for duplicate detection
-  userAgent   String?  // Optional for analytics
-
-  // Relations
-  survey      Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-
-  @@index([surveyId])
-  @@index([surveyId, submittedAt])
 }

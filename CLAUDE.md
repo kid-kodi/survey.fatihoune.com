@@ -1,4 +1,4 @@
-# CLAUDE.md
+commit # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -61,3 +61,18 @@ npx shadcn@latest add [component-name]
 - Uses Tailwind CSS with CSS variables for theming
 - Dark mode support is built-in via `dark:` variant
 - Utility function `cn()` in `lib/utils.ts` merges Tailwind classes properly
+
+## Form Building
+
+Always use the following stack for building forms:
+- **react-hook-form** - Form state management and validation
+- **Zod** - Schema validation
+- **FormField component** - Compose accessible forms using Radix UI components
+
+Standard pattern:
+```tsx
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
+```

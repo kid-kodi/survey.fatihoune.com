@@ -18,7 +18,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Plus } from "lucide-react";
+import { MoreVertical, Plus, Share2 } from "lucide-react";
+import { ShareDialog } from "@/components/ShareDialog";
 
 type Survey = {
   id: string;
@@ -40,6 +41,8 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
 
   const handleLogout = async () => {
     await signOut();
@@ -190,6 +193,12 @@ export default function DashboardPage() {
   const handleViewResponses = (surveyId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     router.push(`/surveys/${surveyId}/responses`);
+  };
+
+  const handleShare = (survey: Survey, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedSurvey(survey);
+    setShareDialogOpen(true);
   };
 
   // Show loading state while checking session
@@ -348,6 +357,12 @@ export default function DashboardPage() {
                             <DropdownMenuItem onClick={(e) => handleEdit(survey.id, e)}>
                               Edit
                             </DropdownMenuItem>
+                            {survey.status === "published" && (
+                              <DropdownMenuItem onClick={(e) => handleShare(survey, e)}>
+                                <Share2 className="h-4 w-4 mr-2" />
+                                Share
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={(e) => handleViewResponses(survey.id, e)}>
                               View Responses
                             </DropdownMenuItem>
@@ -404,6 +419,16 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+
+      {/* Share Dialog */}
+      {selectedSurvey && (
+        <ShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          surveyTitle={selectedSurvey.title}
+          uniqueId={selectedSurvey.uniqueId}
+        />
+      )}
     </div>
   );
 }

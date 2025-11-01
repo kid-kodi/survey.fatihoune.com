@@ -24,8 +24,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, GripVertical, GitBranch, CheckCircle2, ExternalLink, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, GripVertical, GitBranch, CheckCircle2, ExternalLink, Copy, Share2 } from "lucide-react";
 import { LogicEditor } from "@/components/LogicEditor";
+import { ShareDialog } from "@/components/ShareDialog";
 import { QuestionLogic } from "@/lib/logic-types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -89,6 +90,7 @@ export default function SurveyEditPage() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -430,6 +432,14 @@ export default function SurveyEditPage() {
                     Published
                   </Badge>
                   <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setShareDialogOpen(true)}
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share
+                  </Button>
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={copyPublicUrl}
@@ -674,6 +684,16 @@ export default function SurveyEditPage() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Share Dialog */}
+      {survey && (
+        <ShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          surveyTitle={survey.title}
+          uniqueId={survey.uniqueId}
+        />
+      )}
     </div>
   );
 }

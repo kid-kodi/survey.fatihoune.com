@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -43,6 +44,15 @@ type Survey = {
   description: string | null;
   status: "draft" | "published" | "archived";
   questions: Question[];
+};
+
+const questionTypeDefaults: Record<QuestionType, any> = {
+  multiple_choice: { choices: ["Option 1", "Option 2"] },
+  text_input: { variant: "short", placeholder: "Your answer here...", maxLength: 500 },
+  rating_scale: { min: 1, max: 5, minLabel: "Poor", maxLabel: "Excellent" },
+  checkbox: { choices: ["Option 1", "Option 2"] },
+  dropdown: { choices: ["Option 1", "Option 2"] },
+  yes_no: {},
 };
 
 export default function SurveyEditPage() {
@@ -91,7 +101,7 @@ export default function SurveyEditPage() {
         body: JSON.stringify({
           type,
           text: "Untitled Question",
-          options: type === "multiple_choice" ? { choices: ["Option 1", "Option 2"] } : {},
+          options: questionTypeDefaults[type],
           required: false,
         }),
       });
@@ -216,7 +226,7 @@ export default function SurveyEditPage() {
                     Add Question
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-lg">
                   <DialogHeader>
                     <DialogTitle>Select Question Type</DialogTitle>
                     <DialogDescription>
@@ -226,37 +236,73 @@ export default function SurveyEditPage() {
                   <div className="grid gap-3 py-4">
                     <Button
                       variant="outline"
-                      className="justify-start h-auto p-4"
+                      className="justify-start h-auto p-4 text-left"
                       onClick={() => handleAddQuestion("multiple_choice")}
                     >
-                      <div className="text-left">
+                      <div>
                         <div className="font-semibold">Multiple Choice</div>
                         <div className="text-sm text-gray-500">
-                          Let respondents choose one option
+                          Respondents choose one option
                         </div>
                       </div>
                     </Button>
                     <Button
                       variant="outline"
-                      className="justify-start h-auto p-4"
-                      disabled
+                      className="justify-start h-auto p-4 text-left"
+                      onClick={() => handleAddQuestion("text_input")}
                     >
-                      <div className="text-left">
+                      <div>
                         <div className="font-semibold">Text Input</div>
                         <div className="text-sm text-gray-500">
-                          Coming in Story 2.4
+                          Short or long text responses
                         </div>
                       </div>
                     </Button>
                     <Button
                       variant="outline"
-                      className="justify-start h-auto p-4"
-                      disabled
+                      className="justify-start h-auto p-4 text-left"
+                      onClick={() => handleAddQuestion("rating_scale")}
                     >
-                      <div className="text-left">
-                        <div className="font-semibold">Other Types</div>
+                      <div>
+                        <div className="font-semibold">Rating Scale</div>
                         <div className="text-sm text-gray-500">
-                          Rating, Checkbox, Dropdown, Yes/No - Coming in Story 2.4
+                          Numeric rating (e.g., 1-5 stars)
+                        </div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="justify-start h-auto p-4 text-left"
+                      onClick={() => handleAddQuestion("checkbox")}
+                    >
+                      <div>
+                        <div className="font-semibold">Checkbox</div>
+                        <div className="text-sm text-gray-500">
+                          Select multiple options
+                        </div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="justify-start h-auto p-4 text-left"
+                      onClick={() => handleAddQuestion("dropdown")}
+                    >
+                      <div>
+                        <div className="font-semibold">Dropdown</div>
+                        <div className="text-sm text-gray-500">
+                          Select from dropdown list
+                        </div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="justify-start h-auto p-4 text-left"
+                      onClick={() => handleAddQuestion("yes_no")}
+                    >
+                      <div>
+                        <div className="font-semibold">Yes/No</div>
+                        <div className="text-sm text-gray-500">
+                          Simple binary choice
                         </div>
                       </div>
                     </Button>
@@ -334,7 +380,6 @@ function QuestionEditor({
   onDelete: (questionId: string) => void;
 }) {
   const [localQuestion, setLocalQuestion] = useState(question);
-  const [isSaving, setIsSaving] = useState(false);
 
   const handleTextChange = (text: string) => {
     setLocalQuestion((prev) => ({ ...prev, text }));
@@ -344,37 +389,11 @@ function QuestionEditor({
     setLocalQuestion((prev) => ({ ...prev, required }));
   };
 
-  const handleAddOption = () => {
-    const newOptions = {
-      ...localQuestion.options,
-      choices: [
-        ...(localQuestion.options.choices || []),
-        `Option ${(localQuestion.options.choices || []).length + 1}`,
-      ],
-    };
-    setLocalQuestion((prev) => ({ ...prev, options: newOptions }));
+  const handleOptionsChange = (options: any) => {
+    setLocalQuestion((prev) => ({ ...prev, options }));
   };
 
-  const handleUpdateOption = (optionIndex: number, value: string) => {
-    const newChoices = [...(localQuestion.options.choices || [])];
-    newChoices[optionIndex] = value;
-    setLocalQuestion((prev) => ({
-      ...prev,
-      options: { ...prev.options, choices: newChoices },
-    }));
-  };
-
-  const handleDeleteOption = (optionIndex: number) => {
-    const newChoices = (localQuestion.options.choices || []).filter(
-      (_: any, i: number) => i !== optionIndex
-    );
-    setLocalQuestion((prev) => ({
-      ...prev,
-      options: { ...prev.options, choices: newChoices },
-    }));
-  };
-
-  // Auto-save when changes are made (debounced would be better in production)
+  // Auto-save when changes are made
   useEffect(() => {
     if (JSON.stringify(localQuestion) !== JSON.stringify(question)) {
       const timer = setTimeout(() => {
@@ -409,38 +428,157 @@ function QuestionEditor({
               </Button>
             </div>
 
+            {/* Multiple Choice Options */}
             {question.type === "multiple_choice" && (
-              <div className="space-y-2">
-                {(localQuestion.options.choices || []).map((choice: string, idx: number) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <div className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-gray-300" />
-                    <Input
-                      value={choice}
-                      onChange={(e) => handleUpdateOption(idx, e.target.value)}
-                      placeholder={`Option ${idx + 1}`}
-                      className="flex-1"
-                    />
-                    {(localQuestion.options.choices || []).length > 2 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteOption(idx)}
-                        className="text-gray-400 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+              <ChoiceOptions
+                choices={localQuestion.options.choices || []}
+                onChange={(choices) =>
+                  handleOptionsChange({ ...localQuestion.options, choices })
+                }
+                icon="radio"
+              />
+            )}
+
+            {/* Checkbox Options */}
+            {question.type === "checkbox" && (
+              <ChoiceOptions
+                choices={localQuestion.options.choices || []}
+                onChange={(choices) =>
+                  handleOptionsChange({ ...localQuestion.options, choices })
+                }
+                icon="checkbox"
+              />
+            )}
+
+            {/* Dropdown Options */}
+            {question.type === "dropdown" && (
+              <ChoiceOptions
+                choices={localQuestion.options.choices || []}
+                onChange={(choices) =>
+                  handleOptionsChange({ ...localQuestion.options, choices })
+                }
+                icon="dropdown"
+              />
+            )}
+
+            {/* Text Input Settings */}
+            {question.type === "text_input" && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <Label className="text-sm text-gray-600">Type:</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={localQuestion.options.variant === "short" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() =>
+                        handleOptionsChange({ ...localQuestion.options, variant: "short" })
+                      }
+                    >
+                      Short Text
+                    </Button>
+                    <Button
+                      variant={localQuestion.options.variant === "long" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() =>
+                        handleOptionsChange({ ...localQuestion.options, variant: "long" })
+                      }
+                    >
+                      Long Text
+                    </Button>
                   </div>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddOption}
-                  className="mt-2"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Option
-                </Button>
+                </div>
+                <div>
+                  <Label className="text-sm text-gray-600">Placeholder:</Label>
+                  <Input
+                    value={localQuestion.options.placeholder || ""}
+                    onChange={(e) =>
+                      handleOptionsChange({
+                        ...localQuestion.options,
+                        placeholder: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., Enter your answer here..."
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Rating Scale Settings */}
+            {question.type === "rating_scale" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-sm text-gray-600">Min Value:</Label>
+                    <Input
+                      type="number"
+                      value={localQuestion.options.min || 1}
+                      onChange={(e) =>
+                        handleOptionsChange({
+                          ...localQuestion.options,
+                          min: parseInt(e.target.value) || 1,
+                        })
+                      }
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-600">Max Value:</Label>
+                    <Input
+                      type="number"
+                      value={localQuestion.options.max || 5}
+                      onChange={(e) =>
+                        handleOptionsChange({
+                          ...localQuestion.options,
+                          max: parseInt(e.target.value) || 5,
+                        })
+                      }
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-sm text-gray-600">Min Label:</Label>
+                    <Input
+                      value={localQuestion.options.minLabel || ""}
+                      onChange={(e) =>
+                        handleOptionsChange({
+                          ...localQuestion.options,
+                          minLabel: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., Poor"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-600">Max Label:</Label>
+                    <Input
+                      value={localQuestion.options.maxLabel || ""}
+                      onChange={(e) =>
+                        handleOptionsChange({
+                          ...localQuestion.options,
+                          maxLabel: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., Excellent"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Yes/No Preview */}
+            {question.type === "yes_no" && (
+              <div className="flex gap-2">
+                <div className="flex h-9 items-center rounded-md border border-gray-300 px-4">
+                  Yes
+                </div>
+                <div className="flex h-9 items-center rounded-md border border-gray-300 px-4">
+                  No
+                </div>
               </div>
             )}
 
@@ -456,12 +594,83 @@ function QuestionEditor({
                 </Label>
               </div>
               <span className="text-xs text-gray-500">
-                Q{index + 1} • {question.type.replace("_", " ")}
+                Q{index + 1} • {question.type.replace(/_/g, " ")}
               </span>
             </div>
           </div>
         </div>
       </CardHeader>
     </Card>
+  );
+}
+
+function ChoiceOptions({
+  choices,
+  onChange,
+  icon,
+}: {
+  choices: string[];
+  onChange: (choices: string[]) => void;
+  icon: "radio" | "checkbox" | "dropdown";
+}) {
+  const handleAddOption = () => {
+    onChange([...choices, `Option ${choices.length + 1}`]);
+  };
+
+  const handleUpdateOption = (index: number, value: string) => {
+    const newChoices = [...choices];
+    newChoices[index] = value;
+    onChange(newChoices);
+  };
+
+  const handleDeleteOption = (index: number) => {
+    if (choices.length > 2) {
+      onChange(choices.filter((_, i) => i !== index));
+    }
+  };
+
+  const getIcon = () => {
+    if (icon === "radio") {
+      return <div className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-gray-300" />;
+    }
+    if (icon === "checkbox") {
+      return <div className="flex h-4 w-4 items-center justify-center rounded border-2 border-gray-300" />;
+    }
+    return <div className="text-gray-400 text-xs">▼</div>;
+  };
+
+  return (
+    <div className="space-y-2">
+      {choices.map((choice, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          {getIcon()}
+          <Input
+            value={choice}
+            onChange={(e) => handleUpdateOption(idx, e.target.value)}
+            placeholder={`Option ${idx + 1}`}
+            className="flex-1"
+          />
+          {choices.length > 2 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeleteOption(idx)}
+              className="text-gray-400 hover:text-red-600"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      ))}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleAddOption}
+        className="mt-2"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Add Option
+      </Button>
+    </div>
   );
 }

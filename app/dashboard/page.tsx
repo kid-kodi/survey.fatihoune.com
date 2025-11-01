@@ -39,6 +39,7 @@ export default function DashboardPage() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const handleLogout = async () => {
     await signOut();
@@ -116,14 +117,74 @@ export default function DashboardPage() {
 
   const handleDuplicate = async (surveyId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // TODO: Implement duplicate functionality in Story 2.9
-    console.log("Duplicate survey:", surveyId);
+
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/duplicate`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to duplicate survey");
+      } else {
+        // Refresh surveys to show the new duplicate
+        fetchSurveys();
+        // Navigate to the new survey editor
+        router.push(`/surveys/${data.survey.id}/edit`);
+      }
+    } catch (error) {
+      console.error("Duplicate survey error:", error);
+      alert("An unexpected error occurred while duplicating the survey");
+    }
   };
 
   const handleArchive = async (surveyId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // TODO: Implement archive functionality in Story 2.9
-    console.log("Archive survey:", surveyId);
+
+    if (!confirm("Are you sure you want to archive this survey?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/archive`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to archive survey");
+      } else {
+        // Refresh surveys to remove the archived survey from the list
+        fetchSurveys();
+      }
+    } catch (error) {
+      console.error("Archive survey error:", error);
+      alert("An unexpected error occurred while archiving the survey");
+    }
+  };
+
+  const handleUnarchive = async (surveyId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/archive`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Failed to unarchive survey");
+      } else {
+        // Refresh surveys
+        fetchSurveys();
+      }
+    } catch (error) {
+      console.error("Unarchive survey error:", error);
+      alert("An unexpected error occurred while unarchiving the survey");
+    }
   };
 
   const handleViewResponses = (surveyId: string, e: React.MouseEvent) => {
@@ -195,6 +256,32 @@ export default function DashboardPage() {
           </Button>
         </div>
 
+        {/* Filter Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setShowArchived(false)}
+              className={`${
+                !showArchived
+                  ? "border-primary text-primary"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+              } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors`}
+            >
+              Active Surveys ({surveys.filter((s) => s.status !== "archived").length})
+            </button>
+            <button
+              onClick={() => setShowArchived(true)}
+              className={`${
+                showArchived
+                  ? "border-primary text-primary"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+              } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors`}
+            >
+              Archived ({surveys.filter((s) => s.status === "archived").length})
+            </button>
+          </nav>
+        </div>
+
         {error && (
           <div className="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
             {error}
@@ -202,30 +289,36 @@ export default function DashboardPage() {
         )}
 
         {/* Empty State */}
-        {surveys.length === 0 && !error && (
+        {surveys.filter((s) => showArchived ? s.status === "archived" : s.status !== "archived").length === 0 && !error && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <div className="mb-4 rounded-full bg-gray-100 p-4">
                 <Plus className="h-8 w-8 text-gray-400" />
               </div>
               <h3 className="mb-2 text-lg font-semibold text-gray-900">
-                No surveys yet
+                {showArchived ? "No archived surveys" : "No surveys yet"}
               </h3>
               <p className="mb-4 text-gray-600">
-                Create your first survey to get started
+                {showArchived
+                  ? "Archived surveys will appear here"
+                  : "Create your first survey to get started"}
               </p>
-              <Button onClick={() => router.push("/surveys/new")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Survey
-              </Button>
+              {!showArchived && (
+                <Button onClick={() => router.push("/surveys/new")}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Survey
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
 
         {/* Survey List */}
-        {surveys.length > 0 && (
+        {surveys.filter((s) => showArchived ? s.status === "archived" : s.status !== "archived").length > 0 && (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {surveys.map((survey) => (
+            {surveys
+              .filter((s) => showArchived ? s.status === "archived" : s.status !== "archived")
+              .map((survey) => (
               <Card
                 key={survey.id}
                 className="cursor-pointer transition-shadow hover:shadow-lg"
@@ -250,18 +343,35 @@ export default function DashboardPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => handleEdit(survey.id, e)}>
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleViewResponses(survey.id, e)}>
-                          View Responses
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleDuplicate(survey.id, e)}>
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleArchive(survey.id, e)}>
-                          Archive
-                        </DropdownMenuItem>
+                        {survey.status !== "archived" && (
+                          <>
+                            <DropdownMenuItem onClick={(e) => handleEdit(survey.id, e)}>
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleViewResponses(survey.id, e)}>
+                              View Responses
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleDuplicate(survey.id, e)}>
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleArchive(survey.id, e)}>
+                              Archive
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {survey.status === "archived" && (
+                          <>
+                            <DropdownMenuItem onClick={(e) => handleViewResponses(survey.id, e)}>
+                              View Responses
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleDuplicate(survey.id, e)}>
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleUnarchive(survey.id, e)}>
+                              Unarchive
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

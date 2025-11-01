@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Users, TrendingUp } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Users, TrendingUp, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { format } from "date-fns";
 
 type Metrics = {
   totalResponses: number;
@@ -18,6 +20,31 @@ type Survey = {
   title: string;
   description: string | null;
   status: "draft" | "published" | "archived";
+  questions: Array<{
+    id: string;
+    type: string;
+    text: string;
+    required: boolean;
+    order: number;
+  }>;
+};
+
+type Response = {
+  id: string;
+  answers: Array<{
+    questionId: string;
+    answer: any;
+  }>;
+  submittedAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+};
+
+type Pagination = {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
 };
 
 export default function SurveyAnalyticsPage() {
@@ -27,14 +54,25 @@ export default function SurveyAnalyticsPage() {
   const { data: session, isPending } = useSession();
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [responses, setResponses] = useState<Response[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingResponses, setIsLoadingResponses] = useState(false);
   const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (session?.user && surveyId) {
       fetchSurveyAndMetrics();
     }
   }, [session, surveyId]);
+
+  useEffect(() => {
+    if (session?.user && surveyId && survey) {
+      fetchResponses(currentPage);
+    }
+  }, [currentPage, survey]);
 
   const fetchSurveyAndMetrics = async () => {
     try {
@@ -62,6 +100,41 @@ export default function SurveyAnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchResponses = async (page: number) => {
+    try {
+      setIsLoadingResponses(true);
+      const response = await fetch(
+        `/api/surveys/${surveyId}/responses?page=${page}&limit=50`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch responses");
+      }
+      const data = await response.json();
+      setResponses(data.responses);
+      setPagination(data.pagination);
+    } catch (err) {
+      console.error("Fetch responses error:", err);
+    } finally {
+      setIsLoadingResponses(false);
+    }
+  };
+
+  const formatAnswerValue = (answer: any, questionType: string): string => {
+    if (answer === null || answer === undefined || answer === "") {
+      return "Not answered";
+    }
+
+    if (Array.isArray(answer)) {
+      return answer.join(", ");
+    }
+
+    if (typeof answer === "boolean") {
+      return answer ? "Yes" : "No";
+    }
+
+    return String(answer);
   };
 
   // Show loading state while checking session
@@ -193,7 +266,7 @@ export default function SurveyAnalyticsPage() {
           </Card>
         </div>
 
-        {/* Placeholder for future tabs (Story 4.2, 4.3) */}
+        {/* Tabs for Responses and Analytics */}
         {metrics.totalResponses === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -214,16 +287,143 @@ export default function SurveyAnalyticsPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-gray-600">
-                Response details and analytics coming soon...
-              </p>
-              <p className="text-sm text-gray-500 mt-2">
-                (Story 4.2: Individual Responses & Story 4.3: Analytics Charts)
-              </p>
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="responses" className="w-full">
+            <TabsList>
+              <TabsTrigger value="responses">Responses</TabsTrigger>
+              <TabsTrigger value="analytics" disabled>
+                Analytics (Coming Soon)
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="responses" className="mt-6">
+              {selectedResponse ? (
+                /* Detailed Response View */
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Response Details</CardTitle>
+                        <CardDescription className="flex items-center gap-2 mt-2">
+                          <Clock className="h-4 w-4" />
+                          {format(new Date(selectedResponse.submittedAt), "PPpp")}
+                        </CardDescription>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedResponse(null)}
+                      >
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back to List
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {survey.questions.map((question, index) => {
+                        const answer = selectedResponse.answers.find(
+                          (a) => a.questionId === question.id
+                        );
+                        return (
+                          <div key={question.id} className="pb-6 border-b last:border-b-0">
+                            <div className="mb-2">
+                              <span className="text-sm font-medium text-gray-500">
+                                Q{index + 1}.
+                              </span>
+                              <span className="ml-2 text-base font-medium text-gray-900">
+                                {question.text}
+                              </span>
+                            </div>
+                            <div className="ml-7 text-gray-700">
+                              {formatAnswerValue(answer?.answer, question.type)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                /* Response List */
+                <>
+                  <div className="space-y-4">
+                    {isLoadingResponses ? (
+                      <Card>
+                        <CardContent className="py-12 text-center">
+                          <p className="text-gray-600">Loading responses...</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      responses.map((response, index) => (
+                        <Card
+                          key={response.id}
+                          className="cursor-pointer hover:shadow-md transition-shadow"
+                          onClick={() => setSelectedResponse(response)}
+                        >
+                          <CardContent className="py-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  Response #{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                  <Clock className="h-4 w-4" />
+                                  {format(new Date(response.submittedAt), "PPp")}
+                                </div>
+                              </div>
+                              <ChevronRight className="h-5 w-5 text-gray-400" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Pagination */}
+                  {pagination && pagination.totalPages > 1 && (
+                    <div className="mt-6 flex items-center justify-between">
+                      <div className="text-sm text-gray-600">
+                        Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                        {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of{" "}
+                        {pagination.totalCount} responses
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          disabled={pagination.page === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
+                          }
+                          disabled={pagination.page === pagination.totalPages}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="analytics" className="mt-6">
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-gray-600">
+                    Analytics charts coming in Story 4.3...
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         )}
       </main>
     </div>

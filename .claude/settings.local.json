@@ -15,7 +15,8 @@
       "Bash($env:PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"1\")",
       "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"1\" npx prisma migrate:*)",
       "Bash(cat:*)",
-      "Bash(pnpm dev)"
+      "Bash(pnpm dev)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

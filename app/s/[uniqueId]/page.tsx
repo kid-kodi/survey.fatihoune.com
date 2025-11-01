@@ -5,6 +5,13 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, FileText } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
 
@@ -33,6 +40,7 @@ export default function PublicSurveyPage() {
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [answers, setAnswers] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (uniqueId) {
@@ -61,6 +69,192 @@ export default function PublicSurveyPage() {
       console.error("Fetch survey error:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAnswerChange = (questionId: string, value: any) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: value,
+    }));
+  };
+
+  const renderQuestion = (question: Question) => {
+    const answer = answers[question.id];
+
+    switch (question.type) {
+      case "multiple_choice":
+        return (
+          <RadioGroup
+            value={answer || ""}
+            onValueChange={(value) => handleAnswerChange(question.id, value)}
+          >
+            <div className="space-y-3">
+              {(question.options.choices || []).map((choice: string, idx: number) => (
+                <div key={idx} className="flex items-center space-x-3">
+                  <RadioGroupItem
+                    value={choice}
+                    id={`${question.id}-${idx}`}
+                    className="min-w-[20px] min-h-[20px]"
+                  />
+                  <Label
+                    htmlFor={`${question.id}-${idx}`}
+                    className="text-base font-normal cursor-pointer flex-1"
+                  >
+                    {choice}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </RadioGroup>
+        );
+
+      case "text_input":
+        const variant = question.options.variant || "short";
+        if (variant === "long") {
+          return (
+            <Textarea
+              value={answer || ""}
+              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+              placeholder={question.options.placeholder || "Your answer..."}
+              className="w-full min-h-[120px]"
+            />
+          );
+        }
+        return (
+          <Input
+            type="text"
+            value={answer || ""}
+            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+            placeholder={question.options.placeholder || "Your answer..."}
+            className="w-full"
+            maxLength={question.options.maxLength || undefined}
+          />
+        );
+
+      case "rating_scale":
+        const min = question.options.min || 1;
+        const max = question.options.max || 5;
+        const minLabel = question.options.minLabel;
+        const maxLabel = question.options.maxLabel;
+
+        return (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handleAnswerChange(question.id, num)}
+                  className={`
+                    min-w-[44px] min-h-[44px] px-4 py-2 rounded-md border-2 font-medium
+                    transition-colors
+                    ${
+                      answer === num
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                    }
+                  `}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+            {(minLabel || maxLabel) && (
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>{minLabel || ""}</span>
+                <span>{maxLabel || ""}</span>
+              </div>
+            )}
+          </div>
+        );
+
+      case "checkbox":
+        const selectedValues = answer || [];
+        return (
+          <div className="space-y-3">
+            {(question.options.choices || []).map((choice: string, idx: number) => (
+              <div key={idx} className="flex items-center space-x-3">
+                <Checkbox
+                  id={`${question.id}-${idx}`}
+                  checked={selectedValues.includes(choice)}
+                  onCheckedChange={(checked) => {
+                    const newValues = checked
+                      ? [...selectedValues, choice]
+                      : selectedValues.filter((v: string) => v !== choice);
+                    handleAnswerChange(question.id, newValues);
+                  }}
+                  className="min-w-[20px] min-h-[20px]"
+                />
+                <Label
+                  htmlFor={`${question.id}-${idx}`}
+                  className="text-base font-normal cursor-pointer flex-1"
+                >
+                  {choice}
+                </Label>
+              </div>
+            ))}
+          </div>
+        );
+
+      case "dropdown":
+        return (
+          <Select
+            value={answer || ""}
+            onValueChange={(value) => handleAnswerChange(question.id, value)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select an option..." />
+            </SelectTrigger>
+            <SelectContent>
+              {(question.options.choices || []).map((choice: string, idx: number) => (
+                <SelectItem key={idx} value={choice}>
+                  {choice}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+
+      case "yes_no":
+        return (
+          <RadioGroup
+            value={answer || ""}
+            onValueChange={(value) => handleAnswerChange(question.id, value)}
+          >
+            <div className="flex gap-4">
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem
+                  value="Yes"
+                  id={`${question.id}-yes`}
+                  className="min-w-[20px] min-h-[20px]"
+                />
+                <Label
+                  htmlFor={`${question.id}-yes`}
+                  className="text-base font-normal cursor-pointer"
+                >
+                  Yes
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem
+                  value="No"
+                  id={`${question.id}-no`}
+                  className="min-w-[20px] min-h-[20px]"
+                />
+                <Label
+                  htmlFor={`${question.id}-no`}
+                  className="text-base font-normal cursor-pointer"
+                >
+                  No
+                </Label>
+              </div>
+            </div>
+          </RadioGroup>
+        );
+
+      default:
+        return <p className="text-gray-500">Unsupported question type</p>;
     }
   };
 
@@ -142,8 +336,8 @@ export default function PublicSurveyPage() {
               ) : (
                 survey.questions.map((question, index) => (
                   <div key={question.id} className="pb-6 border-b last:border-b-0">
-                    <div className="mb-3">
-                      <label className="text-base font-medium text-gray-900">
+                    <div className="mb-4">
+                      <label className="text-base font-medium text-gray-900 block">
                         <span className="text-gray-500 mr-2">Q{index + 1}.</span>
                         {question.text}
                         {question.required && (
@@ -152,22 +346,12 @@ export default function PublicSurveyPage() {
                       </label>
                     </div>
 
-                    {/* Question rendering placeholder - will be implemented in Story 3.3 */}
-                    <div className="text-sm text-gray-500 italic">
-                      [{question.type.replace(/_/g, " ")} question]
-                    </div>
+                    {renderQuestion(question)}
                   </div>
                 ))
               )}
             </div>
 
-            {survey.questions.length > 0 && (
-              <Alert className="mt-6">
-                <AlertDescription className="text-sm text-gray-600">
-                  Question rendering and response submission will be available in the next update.
-                </AlertDescription>
-              </Alert>
-            )}
           </CardContent>
         </Card>
       </div>

@@ -48,15 +48,35 @@ BETTER_AUTH_URL="http://localhost:3000"
 
 ### 4. Set up the database
 
+You'll need a PostgreSQL database. Choose one of these options:
+
+- **Local PostgreSQL** - Best for development (see [Database Setup Guide](./docs/database-setup.md#option-1-local-postgresql-recommended-for-development))
+- **Railway** - Free cloud PostgreSQL (see [Database Setup Guide](./docs/database-setup.md#option-2-railway-cloud-hosting))
+- **Supabase** - Free cloud PostgreSQL (see [Database Setup Guide](./docs/database-setup.md#option-3-supabase-cloud-hosting))
+- **Other** - Neon, Render, Vercel Postgres (see [Database Setup Guide](./docs/database-setup.md#option-4-other-cloud-providers))
+
+For detailed setup instructions for each option, see **[docs/database-setup.md](./docs/database-setup.md)**.
+
+Once you have a database, update your `.env` file with the connection string, then run:
+
 ```bash
+# Create a .env file (Prisma uses .env, not .env.local)
+cp .env.local .env
+
+# Edit .env and update DATABASE_URL with your actual database credentials
+
+# Run database migrations
+pnpm prisma migrate dev
+
 # Generate Prisma Client
 pnpm prisma generate
 
-# Run database migrations (when available)
-pnpm prisma migrate dev
-
-# (Optional) Seed the database
+# (Optional) Seed the database with test data
 pnpm prisma db seed
+
+# Test the database connection
+pnpm dev
+# Visit http://localhost:3000/api/health to verify connection
 ```
 
 ### 5. Run the development server
@@ -119,6 +139,7 @@ Comprehensive documentation is available in the `docs/` directory:
 - [Project Brief](./docs/brief.md) - Problem statement, solution, and MVP scope
 - [Product Requirements](./docs/prd/index.md) - Detailed requirements and user stories
 - [Architecture](./docs/architecture/index.md) - Technical architecture and system design
+- [Database Setup](./docs/database-setup.md) - Step-by-step database configuration guide
 
 ## Development Workflow
 

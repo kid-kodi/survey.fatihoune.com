@@ -6,8 +6,9 @@ import { useSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, TrendingUp, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { ArrowLeft, Users, TrendingUp, ChevronLeft, ChevronRight, Clock, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 type Metrics = {
   totalResponses: number;
@@ -47,6 +48,14 @@ type Pagination = {
   totalPages: number;
 };
 
+type QuestionAnalytics = {
+  questionId: string;
+  questionText: string;
+  questionType: string;
+  totalResponses: number;
+  data: any;
+};
+
 export default function SurveyAnalyticsPage() {
   const router = useRouter();
   const params = useParams();
@@ -57,10 +66,13 @@ export default function SurveyAnalyticsPage() {
   const [responses, setResponses] = useState<Response[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
+  const [analytics, setAnalytics] = useState<QuestionAnalytics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingResponses, setIsLoadingResponses] = useState(false);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("responses");
 
   useEffect(() => {
     if (session?.user && surveyId) {
@@ -73,6 +85,12 @@ export default function SurveyAnalyticsPage() {
       fetchResponses(currentPage);
     }
   }, [currentPage, survey]);
+
+  useEffect(() => {
+    if (session?.user && surveyId && survey && activeTab === "analytics") {
+      fetchAnalytics();
+    }
+  }, [activeTab, survey]);
 
   const fetchSurveyAndMetrics = async () => {
     try {
@@ -118,6 +136,22 @@ export default function SurveyAnalyticsPage() {
       console.error("Fetch responses error:", err);
     } finally {
       setIsLoadingResponses(false);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      setIsLoadingAnalytics(true);
+      const response = await fetch(`/api/surveys/${surveyId}/analytics`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch analytics");
+      }
+      const data = await response.json();
+      setAnalytics(data.analytics);
+    } catch (err) {
+      console.error("Fetch analytics error:", err);
+    } finally {
+      setIsLoadingAnalytics(false);
     }
   };
 
@@ -287,11 +321,11 @@ export default function SurveyAnalyticsPage() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue="responses" className="w-full">
+          <Tabs defaultValue="responses" className="w-full" onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="responses">Responses</TabsTrigger>
-              <TabsTrigger value="analytics" disabled>
-                Analytics (Coming Soon)
+              <TabsTrigger value="analytics">
+                Analytics
               </TabsTrigger>
             </TabsList>
 
@@ -415,13 +449,73 @@ export default function SurveyAnalyticsPage() {
             </TabsContent>
 
             <TabsContent value="analytics" className="mt-6">
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <p className="text-gray-600">
-                    Analytics charts coming in Story 4.3...
-                  </p>
-                </CardContent>
-              </Card>
+              {isLoadingAnalytics ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <p className="text-gray-600">Loading analytics...</p>
+                  </CardContent>
+                </Card>
+              ) : analytics.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">
+                      No analytics data available
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-8">
+                  {analytics.map((questionAnalytics) => (
+                    <Card key={questionAnalytics.questionId}>
+                      <CardHeader>
+                        <CardTitle className="text-lg">
+                          {questionAnalytics.questionText}
+                        </CardTitle>
+                        <CardDescription>
+                          {questionAnalytics.totalResponses} {questionAnalytics.totalResponses === 1 ? "response" : "responses"}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {questionAnalytics.data.type === "categorical" || questionAnalytics.data.type === "rating" ? (
+                          <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={questionAnalytics.data.options}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="option" />
+                              <YAxis />
+                              <Tooltip
+                                formatter={(value, name) => {
+                                  if (name === "count") return [value, "Responses"];
+                                  return [value, name];
+                                }}
+                              />
+                              <Legend />
+                              <Bar dataKey="count" fill="#3b82f6" name="Responses" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : questionAnalytics.data.type === "text" ? (
+                          <div className="space-y-2">
+                            <p className="text-sm text-gray-600 mb-4">
+                              Showing {Math.min(questionAnalytics.data.totalCount, 100)} of {questionAnalytics.data.totalCount} text {questionAnalytics.data.totalCount === 1 ? "response" : "responses"}
+                            </p>
+                            <div className="max-h-96 overflow-y-auto space-y-2">
+                              {questionAnalytics.data.responses.map((response: string, idx: number) => (
+                                <div key={idx} className="p-3 bg-gray-50 rounded border border-gray-200">
+                                  <p className="text-gray-700">{response}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 text-center py-8">
+                            Analytics not available for this question type
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { QuestionLogic } from "@/lib/logic-types";
+import { getVisibleQuestions } from "@/lib/logic-evaluator";
 
 type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
 
@@ -22,7 +24,7 @@ type Question = {
   options: any;
   required: boolean;
   order: number;
-  logic: any;
+  logic: QuestionLogic | null;
 };
 
 type Survey = {
@@ -44,6 +46,18 @@ export default function PublicSurveyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+
+  // Compute visible questions based on current answers and conditional logic
+  const visibleQuestionIds = useMemo(() => {
+    if (!survey) return new Set<string>();
+    return getVisibleQuestions(survey.questions, answers);
+  }, [survey, answers]);
+
+  // Filter to only visible questions
+  const visibleQuestions = useMemo(() => {
+    if (!survey) return [];
+    return survey.questions.filter((q) => visibleQuestionIds.has(q.id));
+  }, [survey, visibleQuestionIds]);
 
   useEffect(() => {
     if (uniqueId) {
@@ -265,7 +279,8 @@ export default function PublicSurveyPage() {
     if (!survey) return false;
 
     const errors: string[] = [];
-    survey.questions.forEach((question) => {
+    // Only validate visible required questions
+    visibleQuestions.forEach((question) => {
       if (question.required) {
         const answer = answers[question.id];
         if (
@@ -274,7 +289,9 @@ export default function PublicSurveyPage() {
           answer === "" ||
           (Array.isArray(answer) && answer.length === 0)
         ) {
-          errors.push(`Q${survey.questions.indexOf(question) + 1}: ${question.text}`);
+          // Find the question's position in visible questions for display
+          const questionNumber = visibleQuestions.indexOf(question) + 1;
+          errors.push(`Q${questionNumber}: ${question.text}`);
         }
       }
     });
@@ -295,13 +312,14 @@ export default function PublicSurveyPage() {
     setIsSubmitting(true);
 
     try {
+      // Only submit answers for visible questions (exclude hidden questions based on logic)
       const response = await fetch(`/api/public/surveys/${survey?.id}/responses`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          answers: survey?.questions.map((q) => ({
+          answers: visibleQuestions.map((q) => ({
             questionId: q.id,
             answer: answers[q.id] || null,
           })),
@@ -442,8 +460,11 @@ export default function PublicSurveyPage() {
                     This survey has no questions yet.
                   </p>
                 ) : (
-                  survey.questions.map((question, index) => (
-                    <div key={question.id} className="pb-6 border-b last:border-b-0">
+                  visibleQuestions.map((question, index) => (
+                    <div
+                      key={question.id}
+                      className="pb-6 border-b last:border-b-0 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-2"
+                    >
                       <div className="mb-4">
                         <label className="text-base font-medium text-gray-900 block">
                           <span className="text-gray-500 mr-2">Q{index + 1}.</span>
@@ -460,7 +481,7 @@ export default function PublicSurveyPage() {
                 )}
               </div>
 
-              {survey.questions.length > 0 && (
+              {visibleQuestions.length > 0 && (
                 <div className="mt-8 flex justify-end">
                   <Button
                     type="submit"

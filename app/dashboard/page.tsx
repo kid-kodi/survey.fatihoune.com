@@ -51,6 +51,12 @@ export default function DashboardPage() {
               <span className="text-sm text-gray-700">
                 {session.user?.name || session.user?.email}
               </span>
+              <Button
+                variant="ghost"
+                onClick={() => router.push("/settings")}
+              >
+                Settings
+              </Button>
               <Button variant="outline" onClick={handleLogout}>
                 Logout
               </Button>

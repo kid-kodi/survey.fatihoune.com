@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -23,7 +24,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, GripVertical } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, GripVertical, GitBranch } from "lucide-react";
+import { LogicEditor } from "@/components/LogicEditor";
+import { QuestionLogic } from "@/lib/logic-types";
 import {
   DndContext,
   closestCenter,
@@ -52,6 +55,7 @@ type Question = {
   options: any;
   required: boolean;
   order: number;
+  logic: QuestionLogic | null;
 };
 
 type Survey = {
@@ -164,6 +168,7 @@ export default function SurveyEditPage() {
             text: updatedQuestion.text,
             options: updatedQuestion.options,
             required: updatedQuestion.required,
+            logic: updatedQuestion.logic,
           }),
         }
       );
@@ -476,6 +481,7 @@ export default function SurveyEditPage() {
                         key={question.id}
                         question={question}
                         index={index}
+                        allQuestions={survey.questions}
                         onUpdate={handleUpdateQuestion}
                         onDelete={handleDeleteQuestion}
                       />
@@ -494,15 +500,18 @@ export default function SurveyEditPage() {
 function QuestionEditor({
   question,
   index,
+  allQuestions,
   onUpdate,
   onDelete,
 }: {
   question: Question;
   index: number;
+  allQuestions: Question[];
   onUpdate: (question: Question) => void;
   onDelete: (questionId: string) => void;
 }) {
   const [localQuestion, setLocalQuestion] = useState(question);
+  const [showLogicEditor, setShowLogicEditor] = useState(false);
 
   const {
     attributes,
@@ -529,6 +538,10 @@ function QuestionEditor({
 
   const handleOptionsChange = (options: any) => {
     setLocalQuestion((prev) => ({ ...prev, options }));
+  };
+
+  const handleLogicSave = (logic: QuestionLogic | null) => {
+    setLocalQuestion((prev) => ({ ...prev, logic }));
   };
 
   // Auto-save when changes are made
@@ -725,23 +738,50 @@ function QuestionEditor({
             )}
 
             <div className="flex items-center justify-between pt-2 border-t">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id={`required-${question.id}`}
-                  checked={localQuestion.required}
-                  onCheckedChange={handleRequiredToggle}
-                />
-                <Label htmlFor={`required-${question.id}`} className="text-sm">
-                  Required
-                </Label>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id={`required-${question.id}`}
+                    checked={localQuestion.required}
+                    onCheckedChange={handleRequiredToggle}
+                  />
+                  <Label htmlFor={`required-${question.id}`} className="text-sm">
+                    Required
+                  </Label>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowLogicEditor(true)}
+                  className="h-8 text-xs"
+                >
+                  <GitBranch className="h-3.5 w-3.5 mr-1.5" />
+                  {localQuestion.logic ? "Edit Logic" : "Add Logic"}
+                </Button>
               </div>
-              <span className="text-xs text-gray-500">
-                Q{index + 1} • {question.type.replace(/_/g, " ")}
-              </span>
+              <div className="flex items-center gap-2">
+                {localQuestion.logic && (
+                  <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800 hover:bg-purple-100">
+                    <GitBranch className="h-3 w-3 mr-1" />
+                    Has Logic
+                  </Badge>
+                )}
+                <span className="text-xs text-gray-500">
+                  Q{index + 1} • {question.type.replace(/_/g, " ")}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </CardHeader>
+
+      <LogicEditor
+        open={showLogicEditor}
+        onOpenChange={setShowLogicEditor}
+        currentQuestion={localQuestion}
+        allQuestions={allQuestions}
+        onSave={handleLogicSave}
+      />
     </Card>
   );
 }

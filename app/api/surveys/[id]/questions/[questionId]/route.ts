@@ -22,7 +22,7 @@ export async function PATCH(
 
     const { id: surveyId, questionId } = await params;
     const body = await request.json();
-    const { type, text, options, required } = body;
+    const { type, text, options, required, logic } = body;
 
     // Validate survey exists and belongs to user
     const survey = await prisma.survey.findUnique({
@@ -63,6 +63,7 @@ export async function PATCH(
         ...(text && { text: text.trim() }),
         ...(options !== undefined && { options }),
         ...(required !== undefined && { required }),
+        ...(logic !== undefined && { logic }),
       },
     });
 
@@ -76,6 +77,7 @@ export async function PATCH(
         options: question.options,
         required: question.required,
         order: question.order,
+        logic: question.logic,
       },
     });
   } catch (error) {

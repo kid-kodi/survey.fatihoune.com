@@ -15,7 +15,7 @@ async function main() {
       name: 'Test User',
       emailVerified: true,
       updatedAt: new Date(),
-      Account: {
+      accounts: {
         create: {
           id: 'test-account-1',
           accountId: 'test@example.com',
@@ -36,7 +36,7 @@ async function main() {
       name: 'Demo User',
       emailVerified: true,
       updatedAt: new Date(),
-      Account: {
+      accounts: {
         create: {
           id: 'test-account-2',
           accountId: 'demo@example.com',

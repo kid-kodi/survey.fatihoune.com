@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
+import { getTemplateById } from "@/lib/templates";
 
 export async function GET(request: NextRequest) {
   try {
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description } = body;
+    const { title, description, templateId } = body;
 
     // Validate title
     if (!title || typeof title !== "string" || !title.trim()) {
@@ -91,13 +92,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new survey
+    // Check if template exists if templateId is provided
+    let template = null;
+    if (templateId) {
+      template = getTemplateById(templateId);
+      if (!template) {
+        return NextResponse.json(
+          { error: "Invalid template ID" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Create new survey with questions if using a template
     const survey = await prisma.survey.create({
       data: {
         userId: session.user.id,
         title: title.trim(),
         description: description?.trim() || null,
         status: "draft",
+        // Create questions from template if provided
+        ...(template && {
+          questions: {
+            create: template.questions.map((question, index) => ({
+              type: question.type,
+              text: question.text,
+              required: question.required,
+              order: index,
+              options: question.options,
+            })),
+          },
+        }),
+      },
+      include: {
+        questions: true,
       },
     });
 
@@ -111,6 +139,7 @@ export async function POST(request: NextRequest) {
         status: survey.status,
         createdAt: survey.createdAt,
         updatedAt: survey.updatedAt,
+        questionCount: survey.questions.length,
       },
     });
   } catch (error) {

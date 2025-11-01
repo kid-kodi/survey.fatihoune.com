@@ -24,9 +24,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, GripVertical, GitBranch } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, GripVertical, GitBranch, CheckCircle2, ExternalLink, Copy } from "lucide-react";
 import { LogicEditor } from "@/components/LogicEditor";
 import { QuestionLogic } from "@/lib/logic-types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   DndContext,
   closestCenter,
@@ -85,6 +86,9 @@ export default function SurveyEditPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [showTypeDialog, setShowTypeDialog] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishSuccess, setPublishSuccess] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -263,6 +267,91 @@ export default function SurveyEditPage() {
     }
   };
 
+  const handlePublish = async () => {
+    if (!survey) return;
+
+    setIsPublishing(true);
+    setValidationErrors([]);
+    setPublishSuccess(false);
+
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/publish`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.validationErrors) {
+          setValidationErrors(data.validationErrors);
+        } else {
+          setError(data.error || "Failed to publish survey");
+        }
+      } else {
+        // Update local state
+        setSurvey((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            status: "published",
+            publishedAt: data.survey.publishedAt,
+          };
+        });
+        setPublishSuccess(true);
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => setPublishSuccess(false), 5000);
+      }
+    } catch (error) {
+      console.error("Publish survey error:", error);
+      setError("An unexpected error occurred while publishing");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleUnpublish = async () => {
+    if (!survey) return;
+    if (!confirm("Are you sure you want to unpublish this survey? It will no longer be accessible to respondents.")) {
+      return;
+    }
+
+    setIsPublishing(true);
+    setPublishSuccess(false);
+
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/publish`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Failed to unpublish survey");
+      } else {
+        // Update local state
+        setSurvey((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            status: "draft",
+          };
+        });
+      }
+    } catch (error) {
+      console.error("Unpublish survey error:", error);
+      setError("An unexpected error occurred while unpublishing");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const copyPublicUrl = () => {
+    if (!survey) return;
+    const url = `${window.location.origin}/s/${survey.uniqueId}`;
+    navigator.clipboard.writeText(url);
+    alert("Public URL copied to clipboard!");
+  };
+
   if (isPending || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -325,10 +414,46 @@ export default function SurveyEditPage() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="outline" disabled>
-                Save Draft
-              </Button>
-              <Button disabled>Publish</Button>
+              {survey.status === "draft" ? (
+                <>
+                  <span className="text-sm text-gray-500">Auto-saved</span>
+                  <Button
+                    onClick={handlePublish}
+                    disabled={isPublishing}
+                  >
+                    {isPublishing ? "Publishing..." : "Publish Survey"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                    Published
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copyPublicUrl}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Link
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(`/s/${survey.uniqueId}`, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleUnpublish}
+                    disabled={isPublishing}
+                  >
+                    {isPublishing ? "Unpublishing..." : "Unpublish"}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -336,13 +461,69 @@ export default function SurveyEditPage() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Success Message */}
+        {publishSuccess && (
+          <Alert className="mb-6 border-green-200 bg-green-50">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              <div className="flex items-center justify-between">
+                <span>
+                  <strong>Survey published successfully!</strong> Your survey is now live at:
+                </span>
+                <div className="flex items-center gap-2 ml-4">
+                  <a
+                    href={`/s/${survey.uniqueId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm underline"
+                  >
+                    {window.location.origin}/s/{survey.uniqueId}
+                  </a>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={copyPublicUrl}
+                    className="h-6 px-2"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Validation Errors */}
+        {validationErrors.length > 0 && (
+          <Alert className="mb-6 border-red-200 bg-red-50">
+            <AlertDescription className="text-red-800">
+              <strong>Cannot publish survey:</strong>
+              <ul className="mt-2 list-disc list-inside">
+                {validationErrors.map((error, idx) => (
+                  <li key={idx}>{error}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Survey Info */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>{survey.title}</CardTitle>
-            {survey.description && (
-              <CardDescription>{survey.description}</CardDescription>
-            )}
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>{survey.title}</CardTitle>
+                {survey.description && (
+                  <CardDescription>{survey.description}</CardDescription>
+                )}
+              </div>
+              {survey.status === "published" && (
+                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Live
+                </Badge>
+              )}
+            </div>
           </CardHeader>
         </Card>
 

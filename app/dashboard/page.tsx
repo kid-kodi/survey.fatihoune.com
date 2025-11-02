@@ -21,6 +21,7 @@ import {
 import { MoreVertical, Plus, Share2, BarChart3, FileText, CheckCircle2 } from "lucide-react";
 import { ShareDialog } from "@/components/ShareDialog";
 import Logo from "@/components/Logo";
+import UserButton from "@/components/UserButton";
 
 type Survey = {
   id: string;
@@ -252,18 +253,7 @@ export default function DashboardPage() {
               <Logo />
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-700">
-                {session.user?.name || session.user?.email}
-              </span>
-              <Button
-                variant="ghost"
-                onClick={() => router.push("/settings")}
-              >
-                Settings
-              </Button>
-              <Button variant="outline" onClick={handleLogout}>
-                Logout
-              </Button>
+              <UserButton />
             </div>
           </div>
         </div>

@@ -30,8 +30,10 @@ import {
   getConditionLabel,
   detectCircularDependency,
 } from "@/lib/logic-types";
-import { QuestionType } from "@prisma/client";
+
 import { Checkbox } from "@/components/ui/checkbox";
+
+type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
 
 type Question = {
   id: string;

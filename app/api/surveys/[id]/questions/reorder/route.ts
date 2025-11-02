@@ -55,7 +55,7 @@ export async function PATCH(
     }
 
     // Validate all question IDs belong to this survey
-    const surveyQuestionIds = survey.questions.map((q) => q.id);
+    const surveyQuestionIds = survey.questions.map((q: { id: string }) => q.id);
     const invalidIds = questionIds.filter(
       (id: string) => !surveyQuestionIds.includes(id)
     );

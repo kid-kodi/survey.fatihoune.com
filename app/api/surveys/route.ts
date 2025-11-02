@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      surveys: surveys.map((survey) => ({
+      surveys: surveys.map((survey:any) => ({
         id: survey.id,
         uniqueId: survey.uniqueId,
         title: survey.title,

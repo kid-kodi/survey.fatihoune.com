@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Logo from "@/components/Logo";
+import UserButton from "@/components/UserButton";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -222,9 +223,7 @@ export default function SettingsPage() {
               >
                 Dashboard
               </Button>
-              <span className="text-sm text-gray-700">
-                {session.user?.name || session.user?.email}
-              </span>
+              <UserButton />
             </div>
           </div>
         </div>

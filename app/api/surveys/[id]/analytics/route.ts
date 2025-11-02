@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 
+
 type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
 
 type QuestionAnalytics = {
@@ -12,6 +13,18 @@ type QuestionAnalytics = {
   totalResponses: number;
   data: any;
 };
+
+type Question = {
+  id: string;
+  createdAt: Date;
+  surveyId: string;
+  type: QuestionType;
+  text: string;
+  options: any;
+  required: boolean;
+  order: number;
+  logic: any | null;
+}
 
 export async function GET(
   request: NextRequest,
@@ -65,18 +78,18 @@ export async function GET(
     }
 
     // Calculate analytics for each question
-    const analytics: QuestionAnalytics[] = survey.questions.map((question) => {
+    const analytics: QuestionAnalytics[] = survey.questions.map((question: Question) => {
       const questionType = question.type as QuestionType;
       const totalResponses = survey.responses.length;
 
       // Collect all answers for this question
       const answers = survey.responses
-        .map((response) => {
+        .map((response: { answers: any }) => {
           const responseAnswers = response.answers as any[];
           const answer = responseAnswers.find((a) => a.questionId === question.id);
           return answer?.answer;
         })
-        .filter((answer) => answer !== null && answer !== undefined && answer !== "");
+        .filter((answer : any) => answer !== null && answer !== undefined && answer !== "");
 
       let data: any = {};
 
@@ -86,7 +99,7 @@ export async function GET(
         case "yes_no": {
           // Count occurrences of each option
           const counts: Record<string, number> = {};
-          answers.forEach((answer) => {
+          answers.forEach((answer : any) => {
             const value = String(answer);
             counts[value] = (counts[value] || 0) + 1;
           });
@@ -106,7 +119,7 @@ export async function GET(
         case "checkbox": {
           // Count occurrences of each selected option
           const counts: Record<string, number> = {};
-          answers.forEach((answer) => {
+          answers.forEach((answer:any) => {
             if (Array.isArray(answer)) {
               answer.forEach((option) => {
                 counts[option] = (counts[option] || 0) + 1;
@@ -136,7 +149,7 @@ export async function GET(
             counts[i] = 0;
           }
 
-          answers.forEach((answer) => {
+          answers.forEach((answer:any) => {
             const rating = Number(answer);
             if (!isNaN(rating) && rating >= min && rating <= max) {
               counts[rating] = (counts[rating] || 0) + 1;

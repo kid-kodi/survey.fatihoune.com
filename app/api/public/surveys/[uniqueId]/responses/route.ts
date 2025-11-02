@@ -43,20 +43,20 @@ export async function POST(
     }
 
     // Validate required questions are answered
-    const requiredQuestions = survey.questions.filter((q) => q.required);
+    const requiredQuestions = survey.questions.filter((q: { required: boolean }) => q.required);
     const answeredQuestionIds = new Set(
       answers.filter((a) => a.answer !== null && a.answer !== "").map((a) => a.questionId)
     );
 
     const missingRequired = requiredQuestions.filter(
-      (q) => !answeredQuestionIds.has(q.id)
+      (q: { id: String }) => !answeredQuestionIds.has(q.id)
     );
 
     if (missingRequired.length > 0) {
       return NextResponse.json(
         {
           error: "Required questions not answered",
-          missingQuestions: missingRequired.map((q) => q.text),
+          missingQuestions: missingRequired.map((q: { text: String }) => q.text),
         },
         { status: 400 }
       );

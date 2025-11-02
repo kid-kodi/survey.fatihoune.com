@@ -1,0 +1,133 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Survey {
+  id          String       @id @default(cuid())
+  userId      String
+  uniqueId    String       @unique @default(cuid())
+  title       String
+  description String?
+  status      SurveyStatus @default(draft)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  publishedAt DateTime?
+  questions   Question[]
+  responses   Response[]
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([uniqueId])
+  @@index([status])
+}
+
+model Question {
+  id        String       @id @default(cuid())
+  surveyId  String
+  type      QuestionType
+  text      String
+  options   Json
+  required  Boolean      @default(false)
+  order     Int
+  logic     Json?
+  createdAt DateTime     @default(now())
+  survey    Survey       @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@index([surveyId])
+  @@index([surveyId, order])
+}
+
+model Response {
+  id          String   @id @default(cuid())
+  surveyId    String
+  answers     Json
+  submittedAt DateTime @default(now())
+  ipAddress   String?
+  userAgent   String?
+  survey      Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@index([surveyId])
+  @@index([surveyId, submittedAt])
+}
+
+enum SurveyStatus {
+  draft
+  published
+  archived
+}
+
+enum QuestionType {
+  multiple_choice
+  text_input
+  rating_scale
+  checkbox
+  dropdown
+  yes_no
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("verification")
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  surveys       Survey[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}

@@ -1,36 +1,170 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Survey.fatihoune.com
+
+A modern survey creation and management platform built with Next.js 16, React 19, and TypeScript.
+
+## Features
+
+- 🚀 Modern stack: Next.js 16 + React 19 + TypeScript
+- 🎨 Beautiful UI with Tailwind CSS 4.x and shadcn/ui components
+- 🔒 Authentication with better-auth (email/password + Google OAuth)
+- 📊 Real-time analytics and data export
+- 📱 Fully responsive design
+- 🗄️ PostgreSQL database with Prisma ORM
+
+## Prerequisites
+
+- Node.js 18+
+- pnpm 8+
+- PostgreSQL 15+
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone the repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+git clone https://github.com/kid-kodi/survey.fatihoune.com.git
+cd survey.fatihoune.com
+```
+
+### 2. Install dependencies
+
+```bash
+pnpm install
+```
+
+### 3. Set up environment variables
+
+```bash
+cp .env.example .env.local
+```
+
+Edit `.env.local` and add your database connection string and other environment variables:
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/survey_db?schema=public"
+BETTER_AUTH_SECRET="your-secret-key-min-32-chars"
+BETTER_AUTH_URL="http://localhost:3000"
+```
+
+### 4. Set up the database
+
+You'll need a PostgreSQL database. Choose one of these options:
+
+- **Local PostgreSQL** - Best for development (see [Database Setup Guide](./docs/database-setup.md#option-1-local-postgresql-recommended-for-development))
+- **Railway** - Free cloud PostgreSQL (see [Database Setup Guide](./docs/database-setup.md#option-2-railway-cloud-hosting))
+- **Supabase** - Free cloud PostgreSQL (see [Database Setup Guide](./docs/database-setup.md#option-3-supabase-cloud-hosting))
+- **Other** - Neon, Render, Vercel Postgres (see [Database Setup Guide](./docs/database-setup.md#option-4-other-cloud-providers))
+
+For detailed setup instructions for each option, see **[docs/database-setup.md](./docs/database-setup.md)**.
+
+Once you have a database, update your `.env` file with the connection string, then run:
+
+```bash
+# Create a .env file (Prisma uses .env, not .env.local)
+cp .env.local .env
+
+# Edit .env and update DATABASE_URL with your actual database credentials
+
+# Run database migrations
+pnpm prisma migrate dev
+
+# Generate Prisma Client
+pnpm prisma generate
+
+# (Optional) Seed the database with test data
+pnpm prisma db seed
+
+# Test the database connection
 pnpm dev
-# or
-bun dev
+# Visit http://localhost:3000/api/health to verify connection
+```
+
+### 5. Run the development server
+
+```bash
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+survey.fatihoune.com/
+├── app/                    # Next.js App Router pages and layouts
+├── components/             # React components
+│   └── ui/                # shadcn/ui components
+├── hooks/                  # Custom React hooks
+├── lib/                    # Utility functions and configurations
+├── types/                  # TypeScript type definitions
+├── prisma/                 # Database schema and migrations
+├── public/                 # Static assets
+└── docs/                   # Project documentation
+```
 
-## Learn More
+## Available Scripts
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Development
+pnpm dev              # Start development server
+pnpm build            # Build for production
+pnpm start            # Start production server
+pnpm lint             # Run ESLint
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Database
+pnpm prisma studio    # Open Prisma Studio (database GUI)
+pnpm prisma generate  # Generate Prisma Client
+pnpm prisma migrate dev  # Run migrations in development
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Code Quality
+pnpm format           # Format code with Prettier (when configured)
+```
 
-## Deploy on Vercel
+## Technology Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Frontend**: Next.js 16, React 19, TypeScript 5.x
+- **Styling**: Tailwind CSS 4.x, shadcn/ui components
+- **Backend**: Next.js API Routes
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: better-auth
+- **Forms**: React Hook Form + Zod validation
+- **Charts**: Recharts
+- **Drag & Drop**: @dnd-kit
+- **Date Handling**: date-fns
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- [Project Brief](./docs/brief.md) - Problem statement, solution, and MVP scope
+- [Product Requirements](./docs/prd/index.md) - Detailed requirements and user stories
+- [Architecture](./docs/architecture/index.md) - Technical architecture and system design
+- [Database Setup](./docs/database-setup.md) - Step-by-step database configuration guide
+
+## Development Workflow
+
+1. Create a new branch from `dev` for your feature
+2. Make your changes following the coding standards in `docs/architecture/coding-standards.md`
+3. Run `pnpm lint` to check for errors
+4. Commit your changes with a descriptive message
+5. Push to your branch and create a pull request
+
+## Contributing
+
+This project follows the requirements and architecture defined in the documentation. Please review the relevant docs before contributing:
+
+- Check `docs/prd/` for feature requirements
+- Review `docs/architecture/` for technical guidelines
+- Follow the coding standards and naming conventions
+
+## License
+
+Private project - All rights reserved.
+
+## Support
+
+For questions or issues, please contact the development team or create an issue on GitHub.
+
+---
+
+Built with ❤️ using Next.js and React

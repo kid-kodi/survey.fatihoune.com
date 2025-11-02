@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(md-tree explode:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd comprehensive project documentation (Brief, PRD, Architecture)\n\n- Add Project Brief (docs/brief.md) with problem statement, solution approach, MVP scope, and technical considerations\n- Add Product Requirements Document (docs/prd.md) with 26 functional and 18 non-functional requirements, 4 epics, and 29 user stories\n- Add Fullstack Architecture Document (docs/architecture.md) with complete system design, tech stack, data models, API specs, and deployment strategy\n- Add sharded documentation in docs/prd/ (12 files) and docs/architecture/ (21 files) for easier navigation and maintenance\n\nKey highlights:\n- Tech stack: Next.js 16, React 19, TypeScript, PostgreSQL, Prisma, better-auth, Tailwind CSS, shadcn/ui\n- 4 epics with 29 detailed user stories and acceptance criteria\n- Complete database schema with Prisma models\n- RESTful API specification with OpenAPI 3.0\n- Frontend/backend architecture with component organization\n- Development workflow, CI/CD pipelines, and deployment strategy\n- Security, performance, testing, and monitoring guidelines\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm install:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(pnpm build:*)",
+      "Bash(npx prisma:*)",
+      "Bash(set PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=1)",
+      "Bash($env:PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"1\")",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"1\" npx prisma migrate:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm dev)",
+      "Bash(git commit:*)",
+      "Bash(rmdir:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -313,7 +313,7 @@ export default function PublicSurveyPage() {
 
     try {
       // Only submit answers for visible questions (exclude hidden questions based on logic)
-      const response = await fetch(`/api/public/surveys/${survey?.id}/responses`, {
+      const response = await fetch(`/api/public/surveys/${survey?.uniqueId}/responses`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

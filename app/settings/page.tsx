@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import Logo from "@/components/Logo";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -212,9 +213,7 @@ export default function SettingsPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">
-                Survey Platform
-              </h1>
+              <Logo />
             </div>
             <div className="flex items-center gap-4">
               <Button

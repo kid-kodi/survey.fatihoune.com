@@ -38,6 +38,15 @@ export async function GET(request: NextRequest) {
             questions: true,
           },
         },
+        responses: {
+          take: 1,
+          orderBy: {
+            submittedAt: "desc",
+          },
+          select: {
+            submittedAt: true,
+          },
+        },
       },
       orderBy: {
         updatedAt: "desc",
@@ -56,6 +65,7 @@ export async function GET(request: NextRequest) {
         publishedAt: survey.publishedAt,
         responseCount: survey._count.responses,
         questionCount: survey._count.questions,
+        lastResponseDate: survey.responses[0]?.submittedAt || null,
       })),
     });
   } catch (error) {

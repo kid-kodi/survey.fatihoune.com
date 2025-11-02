@@ -18,8 +18,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Plus, Share2 } from "lucide-react";
+import { MoreVertical, Plus, Share2, BarChart3, FileText, CheckCircle2 } from "lucide-react";
 import { ShareDialog } from "@/components/ShareDialog";
+import Logo from "@/components/Logo";
 
 type Survey = {
   id: string;
@@ -32,12 +33,21 @@ type Survey = {
   publishedAt: string | null;
   responseCount: number;
   questionCount: number;
+  lastResponseDate: string | null;
+};
+
+type DashboardStats = {
+  totalSurveys: number;
+  surveysPublished: number;
+  totalResponses: number;
+  lastResponseDate: string | null;
 };
 
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -49,10 +59,11 @@ export default function DashboardPage() {
     router.push("/login");
   };
 
-  // Fetch surveys when component mounts
+  // Fetch surveys and stats when component mounts
   useEffect(() => {
     if (session?.user) {
       fetchSurveys();
+      fetchDashboardStats();
     }
   }, [session]);
 
@@ -73,6 +84,21 @@ export default function DashboardPage() {
       console.error("Fetch surveys error:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await fetch("/api/dashboard/stats");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch dashboard stats");
+      }
+
+      const data = await response.json();
+      setStats(data.stats);
+    } catch (err) {
+      console.error("Fetch dashboard stats error:", err);
     }
   };
 
@@ -223,9 +249,7 @@ export default function DashboardPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">
-                Survey Platform
-              </h1>
+              <Logo />
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-700">
@@ -264,6 +288,65 @@ export default function DashboardPage() {
             Create New Survey
           </Button>
         </div>
+
+        {/* Overview Stats */}
+        {stats && (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+            {/* Total Surveys */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">
+                  Total Surveys
+                </CardTitle>
+                <FileText className="h-5 w-5 text-gray-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold text-gray-900">
+                  {stats.totalSurveys}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  All surveys created
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Total Responses */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">
+                  Total Responses
+                </CardTitle>
+                <BarChart3 className="h-5 w-5 text-gray-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold text-gray-900">
+                  {stats.totalResponses}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Across all surveys
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Surveys Published */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">
+                  Published Surveys
+                </CardTitle>
+                <CheckCircle2 className="h-5 w-5 text-gray-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold text-gray-900">
+                  {stats.surveysPublished}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Active and collecting data
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Filter Tabs */}
         <div className="mb-6 border-b border-gray-200">
@@ -406,12 +489,21 @@ export default function DashboardPage() {
                       <span>Responses:</span>
                       <span className="font-medium">{survey.responseCount}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Updated:</span>
-                      <span className="font-medium">
-                        {formatDate(survey.updatedAt)}
-                      </span>
-                    </div>
+                    {survey.lastResponseDate ? (
+                      <div className="flex justify-between">
+                        <span>Last Response:</span>
+                        <span className="font-medium">
+                          {formatDate(survey.lastResponseDate)}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span>Updated:</span>
+                        <span className="font-medium">
+                          {formatDate(survey.updatedAt)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -6,9 +6,25 @@ import { useSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, TrendingUp, ChevronLeft, ChevronRight, Clock, BarChart3 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowLeft, Users, TrendingUp, ChevronLeft, ChevronRight, Clock, BarChart3, PieChartIcon, Download, LayoutGrid, TableIcon, Search, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
+// Accessible color palette for pie charts
+const CHART_COLORS = [
+  "#3b82f6", // blue
+  "#10b981", // green
+  "#f59e0b", // amber
+  "#ef4444", // red
+  "#8b5cf6", // purple
+  "#ec4899", // pink
+  "#14b8a6", // teal
+  "#f97316", // orange
+  "#6366f1", // indigo
+  "#84cc16", // lime
+];
 
 type Metrics = {
   totalResponses: number;
@@ -73,6 +89,10 @@ export default function SurveyAnalyticsPage() {
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("responses");
+  const [chartType, setChartType] = useState<"bar" | "pie">("bar");
+  const [viewMode, setViewMode] = useState<"card" | "table">("card");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   useEffect(() => {
     if (session?.user && surveyId) {
@@ -169,6 +189,59 @@ export default function SurveyAnalyticsPage() {
     }
 
     return String(answer);
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/export`);
+      if (!response.ok) {
+        throw new Error("Failed to export CSV");
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `survey-responses-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Export CSV error:", err);
+      setError("Failed to export CSV. Please try again.");
+    }
+  };
+
+  // Filter and sort responses
+  const getFilteredAndSortedResponses = () => {
+    let filtered = [...responses];
+
+    // Apply search filter
+    if (searchFilter.trim() !== "" && survey) {
+      filtered = filtered.filter((response) => {
+        // Search across all answers
+        const searchLower = searchFilter.toLowerCase();
+        return response.answers.some((answer) => {
+          const answerValue = formatAnswerValue(answer.answer, "");
+          return answerValue.toLowerCase().includes(searchLower);
+        });
+      });
+    }
+
+    // Apply sort
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.submittedAt).getTime();
+      const dateB = new Date(b.submittedAt).getTime();
+      return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
   };
 
   // Show loading state while checking session
@@ -321,13 +394,22 @@ export default function SurveyAnalyticsPage() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue="responses" className="w-full" onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="responses">Responses</TabsTrigger>
-              <TabsTrigger value="analytics">
-                Analytics
-              </TabsTrigger>
-            </TabsList>
+          <div>
+            {/* Export Button */}
+            <div className="flex justify-end mb-4">
+              <Button onClick={handleExportCSV} variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                Export to CSV
+              </Button>
+            </div>
+
+            <Tabs defaultValue="responses" className="w-full" onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="responses">Responses</TabsTrigger>
+                <TabsTrigger value="analytics">
+                  Analytics
+                </TabsTrigger>
+              </TabsList>
 
             <TabsContent value="responses" className="mt-6">
               {selectedResponse ? (
@@ -379,69 +461,182 @@ export default function SurveyAnalyticsPage() {
               ) : (
                 /* Response List */
                 <>
-                  <div className="space-y-4">
-                    {isLoadingResponses ? (
-                      <Card>
-                        <CardContent className="py-12 text-center">
-                          <p className="text-gray-600">Loading responses...</p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      responses.map((response, index) => (
-                        <Card
-                          key={response.id}
-                          className="cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => setSelectedResponse(response)}
-                        >
-                          <CardContent className="py-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="font-medium text-gray-900">
-                                  Response #{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                                  <Clock className="h-4 w-4" />
-                                  {format(new Date(response.submittedAt), "PPp")}
-                                </div>
-                              </div>
-                              <ChevronRight className="h-5 w-5 text-gray-400" />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
+                  {/* View Mode Toggle and Search */}
+                  <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                    {/* View Toggle */}
+                    <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+                      <Button
+                        variant={viewMode === "card" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("card")}
+                        className="gap-2"
+                      >
+                        <LayoutGrid className="h-4 w-4" />
+                        Card
+                      </Button>
+                      <Button
+                        variant={viewMode === "table" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("table")}
+                        className="gap-2"
+                      >
+                        <TableIcon className="h-4 w-4" />
+                        Table
+                      </Button>
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search responses..."
+                        value={searchFilter}
+                        onChange={(e) => setSearchFilter(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+
+                    {/* Sort Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+                      className="gap-2 whitespace-nowrap"
+                    >
+                      <ArrowUpDown className="h-4 w-4" />
+                      {sortOrder === "desc" ? "Newest First" : "Oldest First"}
+                    </Button>
                   </div>
 
-                  {/* Pagination */}
-                  {pagination && pagination.totalPages > 1 && (
-                    <div className="mt-6 flex items-center justify-between">
-                      <div className="text-sm text-gray-600">
-                        Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                        {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of{" "}
-                        {pagination.totalCount} responses
+                  {isLoadingResponses ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <p className="text-gray-600">Loading responses...</p>
+                      </CardContent>
+                    </Card>
+                  ) : viewMode === "card" ? (
+                    /* Card View */
+                    <>
+                      <div className="space-y-4">
+                        {getFilteredAndSortedResponses().length === 0 ? (
+                          <Card>
+                            <CardContent className="py-12 text-center">
+                              <p className="text-gray-600">
+                                {searchFilter ? "No responses match your search." : "No responses yet."}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        ) : (
+                          getFilteredAndSortedResponses().map((response, index) => (
+                            <Card
+                              key={response.id}
+                              className="cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => setSelectedResponse(response)}
+                            >
+                              <CardContent className="py-4">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <div className="font-medium text-gray-900">
+                                      Response #{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                      <Clock className="h-4 w-4" />
+                                      {format(new Date(response.submittedAt), "PPp")}
+                                    </div>
+                                  </div>
+                                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))
+                        )}
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                          disabled={pagination.page === 1}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
-                          }
-                          disabled={pagination.page === pagination.totalPages}
-                        >
-                          Next
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </div>
+
+                      {/* Pagination */}
+                      {pagination && pagination.totalPages > 1 && !searchFilter && (
+                        <div className="mt-6 flex items-center justify-between">
+                          <div className="text-sm text-gray-600">
+                            Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                            {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of{" "}
+                            {pagination.totalCount} responses
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                              disabled={pagination.page === 1}
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                              Previous
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
+                              }
+                              disabled={pagination.page === pagination.totalPages}
+                            >
+                              Next
+                              <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* Table View */
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[180px]">Timestamp</TableHead>
+                            {survey.questions.map((question) => (
+                              <TableHead key={question.id} className="min-w-[150px]">
+                                {question.text.length > 30
+                                  ? `${question.text.substring(0, 30)}...`
+                                  : question.text}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {getFilteredAndSortedResponses().length === 0 ? (
+                            <TableRow>
+                              <TableCell
+                                colSpan={survey.questions.length + 1}
+                                className="text-center py-12 text-gray-600"
+                              >
+                                {searchFilter ? "No responses match your search." : "No responses yet."}
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            getFilteredAndSortedResponses().map((response) => (
+                              <TableRow
+                                key={response.id}
+                                className="cursor-pointer hover:bg-gray-50"
+                                onClick={() => setSelectedResponse(response)}
+                              >
+                                <TableCell className="font-medium">
+                                  {format(new Date(response.submittedAt), "MMM d, yyyy HH:mm")}
+                                </TableCell>
+                                {survey.questions.map((question) => {
+                                  const answer = response.answers.find(
+                                    (a) => a.questionId === question.id
+                                  );
+                                  const value = formatAnswerValue(answer?.answer, question.type);
+                                  return (
+                                    <TableCell key={question.id}>
+                                      {value.length > 50 ? `${value.substring(0, 50)}...` : value}
+                                    </TableCell>
+                                  );
+                                })}
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
                     </div>
                   )}
                 </>
@@ -465,59 +660,110 @@ export default function SurveyAnalyticsPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-8">
-                  {analytics.map((questionAnalytics) => (
-                    <Card key={questionAnalytics.questionId}>
-                      <CardHeader>
-                        <CardTitle className="text-lg">
-                          {questionAnalytics.questionText}
-                        </CardTitle>
-                        <CardDescription>
-                          {questionAnalytics.totalResponses} {questionAnalytics.totalResponses === 1 ? "response" : "responses"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {questionAnalytics.data.type === "categorical" || questionAnalytics.data.type === "rating" ? (
-                          <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={questionAnalytics.data.options}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="option" />
-                              <YAxis />
-                              <Tooltip
-                                formatter={(value, name) => {
-                                  if (name === "count") return [value, "Responses"];
-                                  return [value, name];
-                                }}
-                              />
-                              <Legend />
-                              <Bar dataKey="count" fill="#3b82f6" name="Responses" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        ) : questionAnalytics.data.type === "text" ? (
-                          <div className="space-y-2">
-                            <p className="text-sm text-gray-600 mb-4">
-                              Showing {Math.min(questionAnalytics.data.totalCount, 100)} of {questionAnalytics.data.totalCount} text {questionAnalytics.data.totalCount === 1 ? "response" : "responses"}
-                            </p>
-                            <div className="max-h-96 overflow-y-auto space-y-2">
-                              {questionAnalytics.data.responses.map((response: string, idx: number) => (
-                                <div key={idx} className="p-3 bg-gray-50 rounded border border-gray-200">
-                                  <p className="text-gray-700">{response}</p>
-                                </div>
-                              ))}
+                <>
+                  {/* Chart Type Toggle */}
+                  <div className="flex justify-end mb-4">
+                    <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+                      <Button
+                        variant={chartType === "bar" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setChartType("bar")}
+                        className="gap-2"
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                        Bar Chart
+                      </Button>
+                      <Button
+                        variant={chartType === "pie" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setChartType("pie")}
+                        className="gap-2"
+                      >
+                        <PieChartIcon className="h-4 w-4" />
+                        Pie Chart
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    {analytics.map((questionAnalytics) => (
+                      <Card key={questionAnalytics.questionId}>
+                        <CardHeader>
+                          <CardTitle className="text-lg">
+                            {questionAnalytics.questionText}
+                          </CardTitle>
+                          <CardDescription>
+                            {questionAnalytics.totalResponses} {questionAnalytics.totalResponses === 1 ? "response" : "responses"}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {questionAnalytics.data.type === "categorical" || questionAnalytics.data.type === "rating" ? (
+                            chartType === "bar" ? (
+                              <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={questionAnalytics.data.options}>
+                                  <CartesianGrid strokeDasharray="3 3" />
+                                  <XAxis dataKey="option" />
+                                  <YAxis />
+                                  <Tooltip
+                                    formatter={(value, name) => {
+                                      if (name === "count") return [value, "Responses"];
+                                      return [value, name];
+                                    }}
+                                  />
+                                  <Legend />
+                                  <Bar dataKey="count" fill="#3b82f6" name="Responses" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            ) : (
+                              <ResponsiveContainer width="100%" height={400}>
+                                <PieChart>
+                                  <Pie
+                                    data={questionAnalytics.data.options}
+                                    dataKey="count"
+                                    nameKey="option"
+                                    cx="50%"
+                                    cy="50%"
+                                    outerRadius={120}
+                                    label={({ option, percentage }) => `${option}: ${percentage}%`}
+                                  >
+                                    {questionAnalytics.data.options.map((entry: any, index: number) => (
+                                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip
+                                    formatter={(value: number, name: string) => [value, "Responses"]}
+                                  />
+                                  <Legend />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            )
+                          ) : questionAnalytics.data.type === "text" ? (
+                            <div className="space-y-2">
+                              <p className="text-sm text-gray-600 mb-4">
+                                Showing {Math.min(questionAnalytics.data.totalCount, 100)} of {questionAnalytics.data.totalCount} text {questionAnalytics.data.totalCount === 1 ? "response" : "responses"}
+                              </p>
+                              <div className="max-h-96 overflow-y-auto space-y-2">
+                                {questionAnalytics.data.responses.map((response: string, idx: number) => (
+                                  <div key={idx} className="p-3 bg-gray-50 rounded border border-gray-200">
+                                    <p className="text-gray-700">{response}</p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <p className="text-gray-500 text-center py-8">
-                            Analytics not available for this question type
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          ) : (
+                            <p className="text-gray-500 text-center py-8">
+                              Analytics not available for this question type
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </>
               )}
             </TabsContent>
           </Tabs>
+          </div>
         )}
       </main>
     </div>

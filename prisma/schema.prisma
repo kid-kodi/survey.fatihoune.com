@@ -9,22 +9,26 @@ datasource db {
 }
 
 model Survey {
-  id          String       @id @default(cuid())
-  userId      String
-  uniqueId    String       @unique @default(cuid())
-  title       String
-  description String?
-  status      SurveyStatus @default(draft)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  publishedAt DateTime?
-  questions   Question[]
-  responses   Response[]
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String           @id @default(cuid())
+  userId         String
+  uniqueId       String           @unique @default(cuid())
+  title          String
+  description    String?
+  status         SurveyStatus     @default(draft)
+  organizationId String?
+  visibility     SurveyVisibility @default(organization)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  publishedAt    DateTime?
+  questions      Question[]
+  responses      Response[]
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([uniqueId])
   @@index([status])
+  @@index([organizationId])
 }
 
 model Question {
@@ -71,6 +75,96 @@ enum QuestionType {
   yes_no
 }
 
+enum SurveyVisibility {
+  private
+  organization
+}
+
+model Organization {
+  id          String                   @id @default(cuid())
+  name        String
+  slug        String                   @unique
+  description String?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  members     OrganizationMember[]
+  surveys     Survey[]
+  roles       Role[]
+  invitations OrganizationInvitation[]
+
+  @@index([slug])
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  roleId         String
+  joinedAt       DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([roleId])
+}
+
+model Role {
+  id             String               @id @default(cuid())
+  organizationId String?
+  name           String
+  description    String?
+  isSystemRole   Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  organization   Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        OrganizationMember[]
+  permissions    RolePermission[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  category    String
+  roles       RolePermission[]
+
+  @@index([category])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model OrganizationInvitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  inviterId      String
+  inviteeEmail   String
+  roleId         String
+  token          String       @unique
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter        User         @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([inviterId])
+  @@index([inviteeEmail])
+  @@index([token])
+}
+
 model Verification {
   id         String   @id
   identifier String
@@ -83,16 +177,18 @@ model Verification {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  surveys       Survey[]
+  id                  String                   @id
+  name                String
+  email               String
+  emailVerified       Boolean                  @default(false)
+  image               String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @default(now()) @updatedAt
+  sessions            Session[]
+  accounts            Account[]
+  surveys             Survey[]
+  organizationMembers OrganizationMember[]
+  sentInvitations     OrganizationInvitation[] @relation("InvitationInviter")
 
   @@unique([email])
   @@map("user")

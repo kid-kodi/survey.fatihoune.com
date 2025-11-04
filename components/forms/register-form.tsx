@@ -31,6 +31,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { authClient, signUp } from "@/lib/auth-client";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 const formSchema = z.object({
   username: z.string().min(3),
@@ -43,6 +44,8 @@ export function RegisterForm({
   ...props
 }: React.ComponentProps<"div">) {
   const [isLoading, setIsLoading] = useState(false);
+
+  const t = useTranslations('Register');
 
   const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
@@ -83,8 +86,8 @@ export function RegisterForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>Signup with your Google account</CardDescription>
+          <CardTitle className="text-xl">{t('welcome_back')}</CardTitle>
+          <CardDescription>{t('signup_with_google')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -103,12 +106,12 @@ export function RegisterForm({
                         fill="currentColor"
                       />
                     </svg>
-                    Signup with Google
+                    {t('signup_with_google_button')}
                   </Button>
                 </div>
                 <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
                   <span className="bg-card text-muted-foreground relative z-10 px-2">
-                    Or continue with
+                    {t('or_continue_with')}
                   </span>
                 </div>
                 <div className="grid gap-6">
@@ -118,9 +121,9 @@ export function RegisterForm({
                       name="username"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Username</FormLabel>
+                          <FormLabel>{t('username')}</FormLabel>
                           <FormControl>
-                            <Input placeholder="shadcn" {...field} />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -132,9 +135,9 @@ export function RegisterForm({
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel>{t('email')}</FormLabel>
                           <FormControl>
-                            <Input placeholder="m@example.com" {...field} />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -148,13 +151,9 @@ export function RegisterForm({
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Password</FormLabel>
+                            <FormLabel>{t('password')}</FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="********"
-                                {...field}
-                                type="password"
-                              />
+                              <Input {...field} type="password"/>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -164,7 +163,7 @@ export function RegisterForm({
                         href="/forgot-password"
                         className="ml-auto text-sm underline-offset-4 hover:underline"
                       >
-                        Forgot your password?
+                        {t('forgot_password')}
                       </Link>
                     </div>
                   </div>
@@ -172,14 +171,14 @@ export function RegisterForm({
                     {isLoading ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
-                      "Signup"
+                      `${t('signup_button')}`
                     )}
                   </Button>
                 </div>
                 <div className="text-center text-sm">
-                  Already have an account?{" "}
+                  {t('already_account')}{" "}
                   <Link href="/login" className="underline underline-offset-4">
-                    Login
+                    {t('login')}
                   </Link>
                 </div>
               </div>
@@ -188,9 +187,9 @@ export function RegisterForm({
         </CardContent>
       </Card>
       <div className="text-muted-foreground *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4">
-        By clicking continue, you agree to our{" "}
-        <Link href="#">Terms of Service</Link> and{" "}
-        <Link href="#">Privacy Policy</Link>.
+        {t("terms_notice")}{" "}
+        <Link href="#">{t("terms_of_service")}</Link> {" & "}
+        <Link href="#">{t("privacy_policy")}</Link>.
       </div>
     </div>
   );

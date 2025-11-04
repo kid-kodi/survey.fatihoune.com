@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
+import { canViewAnalytics } from "@/lib/utils/visibility";
 
 export async function GET(
   request: NextRequest,
@@ -22,13 +23,15 @@ export async function GET(
 
     const { id: surveyId } = await params;
 
-    // Fetch survey to verify ownership
+    // Fetch survey to verify access
     const survey = await prisma.survey.findUnique({
       where: { id: surveyId },
       select: {
         id: true,
         userId: true,
         title: true,
+        visibility: true,
+        organizationId: true,
       },
     });
 
@@ -39,8 +42,33 @@ export async function GET(
       );
     }
 
-    // Check authorization
-    if (survey.userId !== session.user.id) {
+    // Get user's organization memberships and permissions for access control
+    const userOrgMemberships = await prisma.organizationMember.findMany({
+      where: { userId: session.user.id },
+      select: {
+        organizationId: true,
+        role: {
+          select: {
+            permissions: {
+              select: {
+                permission: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const orgIds = userOrgMemberships.map((m) => m.organizationId);
+    const permissions = userOrgMemberships.flatMap((m) =>
+      m.role.permissions.map((p) => p.permission.name)
+    );
+
+    // Check if user can view responses based on visibility rules
+    if (!canViewAnalytics(survey, session.user.id, orgIds, permissions)) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 403 }

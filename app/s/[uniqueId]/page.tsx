@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { QuestionLogic } from "@/lib/logic-types";
 import { getVisibleQuestions } from "@/lib/logic-evaluator";
+import { useTranslations } from "next-intl";
 
 type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
 
@@ -37,6 +38,7 @@ type Survey = {
 };
 
 export default function PublicSurveyPage() {
+  const t = useTranslations('PublicSurvey');
   const params = useParams();
   const uniqueId = params.uniqueId as string;
   const [survey, setSurvey] = useState<Survey | null>(null);
@@ -73,7 +75,7 @@ export default function PublicSurveyPage() {
 
       if (!response.ok) {
         if (response.status === 404) {
-          setError("Survey not found");
+          setError(`${t("survey_not_found")}`);
         } else {
           throw new Error("Failed to fetch survey");
         }
@@ -82,7 +84,7 @@ export default function PublicSurveyPage() {
         setSurvey(data.survey);
       }
     } catch (err) {
-      setError("Failed to load survey. Please try again.");
+      setError(`${t("failed_load")}`);
       console.error("Fetch survey error:", err);
     } finally {
       setIsLoading(false);
@@ -133,7 +135,7 @@ export default function PublicSurveyPage() {
             <Textarea
               value={answer || ""}
               onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-              placeholder={question.options.placeholder || "Your answer..."}
+              placeholder={question.options.placeholder || `${t('your_answer')}`}
               className="w-full min-h-[120px]"
             />
           );
@@ -143,7 +145,7 @@ export default function PublicSurveyPage() {
             type="text"
             value={answer || ""}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            placeholder={question.options.placeholder || "Your answer..."}
+            placeholder={question.options.placeholder || `${t('your_answer')}`}
             className="w-full"
             maxLength={question.options.maxLength || undefined}
           />
@@ -166,10 +168,9 @@ export default function PublicSurveyPage() {
                   className={`
                     min-w-[44px] min-h-[44px] px-4 py-2 rounded-md border-2 font-medium
                     transition-colors
-                    ${
-                      answer === num
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                    ${answer === num
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
                     }
                   `}
                 >
@@ -221,7 +222,7 @@ export default function PublicSurveyPage() {
             onValueChange={(value) => handleAnswerChange(question.id, value)}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select an option..." />
+              <SelectValue placeholder={`${t("select_option")}`} />
             </SelectTrigger>
             <SelectContent>
               {(question.options.choices || []).map((choice: string, idx: number) => (
@@ -250,7 +251,7 @@ export default function PublicSurveyPage() {
                   htmlFor={`${question.id}-yes`}
                   className="text-base font-normal cursor-pointer"
                 >
-                  Yes
+                  {t("yes")}
                 </Label>
               </div>
               <div className="flex items-center space-x-3">
@@ -263,7 +264,7 @@ export default function PublicSurveyPage() {
                   htmlFor={`${question.id}-no`}
                   className="text-base font-normal cursor-pointer"
                 >
-                  No
+                  {t("yes")}
                 </Label>
               </div>
             </div>
@@ -271,7 +272,7 @@ export default function PublicSurveyPage() {
         );
 
       default:
-        return <p className="text-gray-500">Unsupported question type</p>;
+        return <p className="text-gray-500">{t("unsupported_question")}</p>;
     }
   };
 
@@ -329,13 +330,13 @@ export default function PublicSurveyPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to submit response");
+        throw new Error(data.error || `${t("failed_submit")}`);
       }
 
       setSubmitted(true);
     } catch (error) {
       console.error("Submit response error:", error);
-      setError("Failed to submit your response. Please try again.");
+      setError(`${t("failed_submit")}`);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setIsSubmitting(false);
@@ -352,14 +353,14 @@ export default function PublicSurveyPage() {
                 <CheckCircle2 className="h-12 w-12 text-green-600" />
               </div>
               <h2 className="mb-2 text-2xl font-bold text-gray-900">
-                Thank You!
+                {t("thank_you")}
               </h2>
               <p className="text-gray-600 mb-4">
-                Thank you for completing{" "}
+                {t("thank_you_completion")}{" "}
                 <strong>{survey?.title}</strong>.
               </p>
               <p className="text-gray-600">
-                Your response has been recorded.
+                {t("response_recorded")}
               </p>
             </div>
           </CardContent>
@@ -371,7 +372,7 @@ export default function PublicSurveyPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Loading survey...</p>
+        <p className="text-gray-600">{t("loading_survey")}</p>
       </div>
     );
   }
@@ -386,10 +387,10 @@ export default function PublicSurveyPage() {
                 <AlertCircle className="h-8 w-8 text-red-600" />
               </div>
               <h2 className="mb-2 text-2xl font-bold text-gray-900">
-                Survey Not Found
+                {t("survey_not_found")}
               </h2>
               <p className="text-gray-600">
-                {error || "The survey you're looking for doesn't exist or is no longer available."}
+                {error || `${t("survey_not_available")}`}
               </p>
             </div>
           </CardContent>
@@ -408,10 +409,10 @@ export default function PublicSurveyPage() {
                 <FileText className="h-8 w-8 text-gray-400" />
               </div>
               <h2 className="mb-2 text-2xl font-bold text-gray-900">
-                Survey Closed
+                {t("survey_closed")}
               </h2>
               <p className="text-gray-600">
-                This survey is no longer accepting responses.
+                {t("no_longer_accepting")}
               </p>
             </div>
           </CardContent>
@@ -440,7 +441,7 @@ export default function PublicSurveyPage() {
           <Alert className="mb-6 border-red-200 bg-red-50">
             <AlertCircle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800">
-              <strong>Please answer all required questions:</strong>
+              <strong>{t("please_answer_required")}</strong>
               <ul className="mt-2 list-disc list-inside">
                 {validationErrors.map((error, idx) => (
                   <li key={idx}>{error}</li>
@@ -457,7 +458,7 @@ export default function PublicSurveyPage() {
               <div className="space-y-6">
                 {survey.questions.length === 0 ? (
                   <p className="text-center text-gray-500">
-                    This survey has no questions yet.
+                    {t("no_questions")}
                   </p>
                 ) : (
                   visibleQuestions.map((question, index) => (
@@ -489,7 +490,7 @@ export default function PublicSurveyPage() {
                     disabled={isSubmitting}
                     className="min-w-[200px]"
                   >
-                    {isSubmitting ? "Submitting..." : "Submit Survey"}
+                    {isSubmitting ? `${t("submitting")}` : `${t("submit_survey")}`}
                   </Button>
                 </div>
               )}

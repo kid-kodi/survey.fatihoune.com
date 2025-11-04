@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,10 +18,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Plus, Share2, BarChart3, FileText, CheckCircle2 } from "lucide-react";
+import { MoreVertical, Plus, Share2, BarChart3, FileText, CheckCircle2, Settings } from "lucide-react";
 import { ShareDialog } from "@/components/ShareDialog";
+import { CreateOrganizationModal } from "@/components/organizations/CreateOrganizationModal";
+import { OrganizationSelector } from "@/components/organizations/OrganizationSelector";
+import { InviteMemberModal } from "@/components/organizations/InviteMemberModal";
 import Logo from "@/components/Logo";
 import UserButton from "@/components/UserButton";
+import { useTranslations } from "next-intl";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type Survey = {
   id: string;
@@ -47,6 +52,7 @@ type DashboardStats = {
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
+  const { currentOrganization, isPersonalWorkspace, refreshOrganizations } = useOrganization();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,24 +61,30 @@ export default function DashboardPage() {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
 
-  const handleLogout = async () => {
-    await signOut();
-    router.push("/login");
-  };
+  const t = useTranslations('Dashboard');
 
-  // Fetch surveys and stats when component mounts
+  // Fetch surveys and stats when component mounts or organization changes
   useEffect(() => {
     if (session?.user) {
       fetchSurveys();
       fetchDashboardStats();
     }
-  }, [session]);
+  }, [session, currentOrganization, isPersonalWorkspace]);
 
   const fetchSurveys = async () => {
     try {
       setIsLoading(true);
       setError("");
-      const response = await fetch("/api/surveys");
+
+      // Build query params based on organization context
+      const params = new URLSearchParams();
+      if (!isPersonalWorkspace && currentOrganization) {
+        params.set("organizationId", currentOrganization.id);
+      } else {
+        params.set("personal", "true");
+      }
+
+      const response = await fetch(`/api/surveys?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error("Failed to fetch surveys");
@@ -81,7 +93,7 @@ export default function DashboardPage() {
       const data = await response.json();
       setSurveys(data.surveys);
     } catch (err) {
-      setError("Failed to load surveys. Please try again.");
+      setError(`${t("failed_load_surveys")}`);
       console.error("Fetch surveys error:", err);
     } finally {
       setIsLoading(false);
@@ -156,7 +168,7 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to duplicate survey");
+        alert(data.error || `${t("failed_duplicate")}`);
       } else {
         // Refresh surveys to show the new duplicate
         fetchSurveys();
@@ -172,7 +184,7 @@ export default function DashboardPage() {
   const handleArchive = async (surveyId: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    if (!confirm("Are you sure you want to archive this survey?")) {
+    if (!confirm(`${t("archive_confirmation")}`)) {
       return;
     }
 
@@ -184,14 +196,14 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to archive survey");
+        alert(data.error || `${t("failed_archive")}`);
       } else {
         // Refresh surveys to remove the archived survey from the list
         fetchSurveys();
       }
     } catch (error) {
       console.error("Archive survey error:", error);
-      alert("An unexpected error occurred while archiving the survey");
+      alert(`${t("unexpected_error")}`);
     }
   };
 
@@ -206,7 +218,7 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || "Failed to unarchive survey");
+        alert(data.error || `${t("failed_unarchive")}`);
       } else {
         // Refresh surveys
         fetchSurveys();
@@ -232,7 +244,7 @@ export default function DashboardPage() {
   if (isPending || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">Loading...</p>
+        <p className="text-gray-600">{t("loading")}</p>
       </div>
     );
   }
@@ -253,6 +265,7 @@ export default function DashboardPage() {
               <Logo />
             </div>
             <div className="flex items-center gap-4">
+              <OrganizationSelector />
               <UserButton />
             </div>
           </div>
@@ -264,19 +277,40 @@ export default function DashboardPage() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">
-              Welcome, {session.user?.name}!
+              {t("welcome", { name: session.user?.name || session.user?.email || "User" })}
             </h2>
             <p className="mt-2 text-gray-600">
-              Manage your surveys and view responses
+              {t("description")}
             </p>
           </div>
-          <Button
-            onClick={() => router.push("/surveys/new")}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Create New Survey
-          </Button>
+          <div className="flex items-center gap-3">
+            {!isPersonalWorkspace && currentOrganization && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(`/organizations/${currentOrganization.id}/settings`)}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Organization Settings
+                </Button>
+                <InviteMemberModal organizationId={currentOrganization.id} />
+              </>
+            )}
+            <CreateOrganizationModal
+              onSuccess={() => {
+                // Refresh organizations after creation
+                refreshOrganizations();
+              }}
+            />
+            <Button
+              onClick={() => router.push("/surveys/new")}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              {t("create_survey")}
+            </Button>
+          </div>
         </div>
 
         {/* Overview Stats */}
@@ -286,7 +320,7 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">
-                  Total Surveys
+                  {t("total_surveys")}
                 </CardTitle>
                 <FileText className="h-5 w-5 text-gray-400" />
               </CardHeader>
@@ -295,7 +329,7 @@ export default function DashboardPage() {
                   {stats.totalSurveys}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  All surveys created
+                  {t("all_surveys")}
                 </p>
               </CardContent>
             </Card>
@@ -304,7 +338,7 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">
-                  Total Responses
+                  {t("total_responses")}
                 </CardTitle>
                 <BarChart3 className="h-5 w-5 text-gray-400" />
               </CardHeader>
@@ -313,7 +347,7 @@ export default function DashboardPage() {
                   {stats.totalResponses}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Across all surveys
+                  {t("across_all_surveys")}
                 </p>
               </CardContent>
             </Card>
@@ -322,7 +356,7 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">
-                  Published Surveys
+                  {t("published_surveys")}
                 </CardTitle>
                 <CheckCircle2 className="h-5 w-5 text-gray-400" />
               </CardHeader>
@@ -331,7 +365,7 @@ export default function DashboardPage() {
                   {stats.surveysPublished}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Active and collecting data
+                  {t("active_collecting")}
                 </p>
               </CardContent>
             </Card>
@@ -343,23 +377,21 @@ export default function DashboardPage() {
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setShowArchived(false)}
-              className={`${
-                !showArchived
-                  ? "border-primary text-primary"
-                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-              } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors`}
+              className={`${!showArchived
+                ? "border-primary text-primary"
+                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors`}
             >
-              Active Surveys ({surveys.filter((s) => s.status !== "archived").length})
+              {t("active_surveys", { count: surveys.filter((s) => s.status !== "archived").length })}
             </button>
             <button
               onClick={() => setShowArchived(true)}
-              className={`${
-                showArchived
-                  ? "border-primary text-primary"
-                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-              } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors`}
+              className={`${showArchived
+                ? "border-primary text-primary"
+                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors`}
             >
-              Archived ({surveys.filter((s) => s.status === "archived").length})
+              {t("archived", { count: surveys.filter((s) => s.status === "archived").length })}
             </button>
           </nav>
         </div>
@@ -378,17 +410,17 @@ export default function DashboardPage() {
                 <Plus className="h-8 w-8 text-gray-400" />
               </div>
               <h3 className="mb-2 text-lg font-semibold text-gray-900">
-                {showArchived ? "No archived surveys" : "No surveys yet"}
+                {showArchived ? `${t("active_collecting")}` : `${t("no_surveys_yet")}`}
               </h3>
               <p className="mb-4 text-gray-600">
                 {showArchived
-                  ? "Archived surveys will appear here"
-                  : "Create your first survey to get started"}
+                  ? `${t("archived_will_appear")}`
+                  : `${t("create_first_survey")}`}
               </p>
               {!showArchived && (
                 <Button onClick={() => router.push("/surveys/new")}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Create Survey
+                  ${t("create_new_survey")}
                 </Button>
               )}
             </CardContent>
@@ -401,103 +433,103 @@ export default function DashboardPage() {
             {surveys
               .filter((s) => showArchived ? s.status === "archived" : s.status !== "archived")
               .map((survey) => (
-              <Card
-                key={survey.id}
-                className="cursor-pointer transition-shadow hover:shadow-lg"
-                onClick={() => handleCardClick(survey)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0 mr-2">
-                      <CardTitle className="truncate text-lg">
-                        {survey.title}
-                      </CardTitle>
-                      <div className="mt-2">{getStatusBadge(survey.status)}</div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {survey.status !== "archived" && (
-                          <>
-                            <DropdownMenuItem onClick={(e) => handleEdit(survey.id, e)}>
-                              Edit
-                            </DropdownMenuItem>
-                            {survey.status === "published" && (
-                              <DropdownMenuItem onClick={(e) => handleShare(survey, e)}>
-                                <Share2 className="h-4 w-4 mr-2" />
-                                Share
+                <Card
+                  key={survey.id}
+                  className="cursor-pointer transition-shadow hover:shadow-lg"
+                  onClick={() => handleCardClick(survey)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0 mr-2">
+                        <CardTitle className="truncate text-lg">
+                          {survey.title}
+                        </CardTitle>
+                        <div className="mt-2">{getStatusBadge(survey.status)}</div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {survey.status !== "archived" && (
+                            <>
+                              <DropdownMenuItem onClick={(e) => handleEdit(survey.id, e)}>
+                                {t("edit")}
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem onClick={(e) => handleViewResponses(survey.id, e)}>
-                              View Responses
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => handleDuplicate(survey.id, e)}>
-                              Duplicate
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => handleArchive(survey.id, e)}>
-                              Archive
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {survey.status === "archived" && (
-                          <>
-                            <DropdownMenuItem onClick={(e) => handleViewResponses(survey.id, e)}>
-                              View Responses
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => handleDuplicate(survey.id, e)}>
-                              Duplicate
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => handleUnarchive(survey.id, e)}>
-                              Unarchive
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {survey.description && (
-                    <CardDescription className="mb-4 line-clamp-2">
-                      {survey.description}
-                    </CardDescription>
-                  )}
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex justify-between">
-                      <span>Questions:</span>
-                      <span className="font-medium">{survey.questionCount}</span>
+                              {survey.status === "published" && (
+                                <DropdownMenuItem onClick={(e) => handleShare(survey, e)}>
+                                  <Share2 className="h-4 w-4 mr-2" />
+                                  {t("share")}
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={(e) => handleViewResponses(survey.id, e)}>
+                                {t("view_responses")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => handleDuplicate(survey.id, e)}>
+                                {t("duplicate")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => handleArchive(survey.id, e)}>
+                                {t("archive")}
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {survey.status === "archived" && (
+                            <>
+                              <DropdownMenuItem onClick={(e) => handleViewResponses(survey.id, e)}>
+                                {t("view_responses")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => handleDuplicate(survey.id, e)}>
+                                {t("duplicate")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => handleUnarchive(survey.id, e)}>
+                                {t("unarchive")}
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Responses:</span>
-                      <span className="font-medium">{survey.responseCount}</span>
-                    </div>
-                    {survey.lastResponseDate ? (
-                      <div className="flex justify-between">
-                        <span>Last Response:</span>
-                        <span className="font-medium">
-                          {formatDate(survey.lastResponseDate)}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex justify-between">
-                        <span>Updated:</span>
-                        <span className="font-medium">
-                          {formatDate(survey.updatedAt)}
-                        </span>
-                      </div>
+                  </CardHeader>
+                  <CardContent>
+                    {survey.description && (
+                      <CardDescription className="mb-4 line-clamp-2">
+                        {survey.description}
+                      </CardDescription>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div className="flex justify-between">
+                        <span>{t("questions")}</span>
+                        <span className="font-medium">{survey.questionCount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>{t("responses")}</span>
+                        <span className="font-medium">{survey.responseCount}</span>
+                      </div>
+                      {survey.lastResponseDate ? (
+                        <div className="flex justify-between">
+                          <span>{t("last_response")}</span>
+                          <span className="font-medium">
+                            {formatDate(survey.lastResponseDate)}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between">
+                          <span>{t("updated")}</span>
+                          <span className="font-medium">
+                            {formatDate(survey.updatedAt)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
           </div>
         )}
       </main>

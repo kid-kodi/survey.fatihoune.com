@@ -16,8 +16,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import Logo from "@/components/Logo";
 import UserButton from "@/components/UserButton";
+import { useTranslations } from "next-intl";
 
 export default function SettingsPage() {
+  const t = useTranslations('Settings');
   const router = useRouter();
   const { data: session, isPending } = useSession();
   const [isLoading, setIsLoading] = useState(false);
@@ -52,7 +54,7 @@ export default function SettingsPage() {
   if (isPending) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">Loading...</p>
+        <p className="text-gray-600">{t("loading")}</p>
       </div>
     );
   }
@@ -67,7 +69,7 @@ export default function SettingsPage() {
     const errors: Record<string, string> = {};
 
     if (!profileData.name.trim()) {
-      errors.name = "Name is required";
+      errors.name = `${t("name_required")}`;
     }
 
     setProfileErrors(errors);
@@ -78,17 +80,17 @@ export default function SettingsPage() {
     const errors: Record<string, string> = {};
 
     if (!passwordData.currentPassword) {
-      errors.currentPassword = "Current password is required";
+      errors.currentPassword = `${t("current_password_required")}`;
     }
 
     if (!passwordData.newPassword) {
-      errors.newPassword = "New password is required";
+      errors.newPassword = `${t("new_password_required")}`;
     } else if (passwordData.newPassword.length < 8) {
-      errors.newPassword = "Password must be at least 8 characters";
+      errors.newPassword = `${t("password_length")}`;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      errors.confirmPassword = "Passwords do not match";
+      errors.confirmPassword = `${t("passwords_not_match")}`;
     }
 
     setPasswordErrors(errors);
@@ -121,15 +123,15 @@ export default function SettingsPage() {
 
       if (!response.ok) {
         setProfileErrors({
-          general: data.error || "Failed to update profile",
+          general: data.error || `${t("failed_update_profile")}`,
         });
       } else {
-        setSuccess("Profile updated successfully!");
+        setSuccess(`${t("profile_updated")}`);
         setTimeout(() => setSuccess(""), 3000);
       }
     } catch (error) {
       setProfileErrors({
-        general: "An unexpected error occurred. Please try again.",
+        general: `${t("unexpected_error")}`,
       });
     } finally {
       setIsLoading(false);
@@ -163,10 +165,10 @@ export default function SettingsPage() {
 
       if (!response.ok) {
         setPasswordErrors({
-          general: data.error || "Failed to update password",
+          general: data.error || `${t("failed_update_password")}`,
         });
       } else {
-        setSuccess("Password updated successfully!");
+        setSuccess(`${t("password_updated")}`);
         setPasswordData({
           currentPassword: "",
           newPassword: "",
@@ -176,7 +178,7 @@ export default function SettingsPage() {
       }
     } catch (error) {
       setPasswordErrors({
-        general: "An unexpected error occurred. Please try again.",
+        general: `${t("unexpected_error")}`,
       });
     } finally {
       setIsLoading(false);
@@ -221,7 +223,7 @@ export default function SettingsPage() {
                 variant="ghost"
                 onClick={() => router.push("/dashboard")}
               >
-                Dashboard
+                {t("dashboard")}
               </Button>
               <UserButton />
             </div>
@@ -232,9 +234,9 @@ export default function SettingsPage() {
       {/* Main Content */}
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">Account Settings</h2>
+          <h2 className="text-3xl font-bold text-gray-900">{t("account_settings")}</h2>
           <p className="mt-2 text-gray-600">
-            Manage your account information and preferences
+            {t("manage_account")}
           </p>
         </div>
 
@@ -247,9 +249,9 @@ export default function SettingsPage() {
         {/* Profile Settings */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
+            <CardTitle>{t("profile_information")}</CardTitle>
             <CardDescription>
-              Update your name and view your email address
+              {t("update_profile")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -261,7 +263,7 @@ export default function SettingsPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">{t("name")}</Label>
                 <Input
                   id="name"
                   name="name"
@@ -277,7 +279,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("email")}</Label>
                 <Input
                   id="email"
                   name="email"
@@ -287,12 +289,12 @@ export default function SettingsPage() {
                   className="bg-gray-100"
                 />
                 <p className="text-sm text-gray-500">
-                  Email cannot be changed in this version
+                  {t("email_cannot_change")}
                 </p>
               </div>
 
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Saving..." : "Save Changes"}
+                {isLoading ? `${t("saving")}` : `${t("save_changes")}`}
               </Button>
             </form>
           </CardContent>
@@ -301,9 +303,9 @@ export default function SettingsPage() {
         {/* Password Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>Change Password</CardTitle>
+            <CardTitle>{t("change_password")}</CardTitle>
             <CardDescription>
-              Update your password to keep your account secure
+              {t("update_password_security")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -315,7 +317,7 @@ export default function SettingsPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
+                <Label htmlFor="currentPassword">{t("current_password")}</Label>
                 <Input
                   id="currentPassword"
                   name="currentPassword"
@@ -337,7 +339,7 @@ export default function SettingsPage() {
               <Separator />
 
               <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
+                <Label htmlFor="newPassword">{t("new_password")}</Label>
                 <Input
                   id="newPassword"
                   name="newPassword"
@@ -355,7 +357,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Label htmlFor="confirmPassword">{t("confirm_password")}</Label>
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -375,7 +377,7 @@ export default function SettingsPage() {
               </div>
 
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Updating..." : "Update Password"}
+                {isLoading ? `${t("updating")}` : `${t("update_password")}`}
               </Button>
             </form>
           </CardContent>

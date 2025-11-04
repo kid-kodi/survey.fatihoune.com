@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
+import { canViewAnalytics } from "@/lib/utils/visibility";
 
 
 type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
@@ -69,8 +70,33 @@ export async function GET(
       );
     }
 
-    // Check authorization
-    if (survey.userId !== session.user.id) {
+    // Get user's organization memberships and permissions for access control
+    const userOrgMemberships = await prisma.organizationMember.findMany({
+      where: { userId: session.user.id },
+      select: {
+        organizationId: true,
+        role: {
+          select: {
+            permissions: {
+              select: {
+                permission: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const orgIds = userOrgMemberships.map((m) => m.organizationId);
+    const permissions = userOrgMemberships.flatMap((m) =>
+      m.role.permissions.map((p) => p.permission.name)
+    );
+
+    // Check if user can view analytics based on visibility rules
+    if (!canViewAnalytics(survey, session.user.id, orgIds, permissions)) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 403 }

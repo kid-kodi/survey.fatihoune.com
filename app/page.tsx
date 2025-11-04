@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
+import { useTranslations } from "next-intl";
 
 export default function Home() {
+  const t = useTranslations('HomePage');
   return (
     <div className="flex min-h-screen flex-col">
       {/* Navigation */}
@@ -14,10 +16,10 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4">
               <Link href="/login">
-                <Button variant="outline">Sign In</Button>
+                <Button variant="outline">{t('sign_in')}</Button>
               </Link>
               <Link href="/register">
-                <Button>Get Started</Button>
+                <Button>{t('get_started')}</Button>
               </Link>
             </div>
           </div>
@@ -28,19 +30,18 @@ export default function Home() {
       <main className="flex flex-1 items-center justify-center bg-gray-50">
         <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            Create Professional Surveys in Minutes
+            {t('title')}
           </h2>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Build, distribute, and analyze surveys with our modern, easy-to-use platform.
-            Get started in less than 10 minutes without any technical expertise.
+            {t('description')}
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
             <Link href="/register">
-              <Button size="lg">Create Your First Survey</Button>
+              <Button size="lg">{t('register_link')}</Button>
             </Link>
             <Link href="/login">
               <Button variant="outline" size="lg">
-                Sign In
+                {t('sign_in')}
               </Button>
             </Link>
           </div>

@@ -32,6 +32,7 @@ import {
 } from "@/lib/logic-types";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTranslations } from "next-intl";
 
 type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
 
@@ -59,6 +60,9 @@ export function LogicEditor({
   allQuestions,
   onSave,
 }: LogicEditorProps) {
+
+  const t = useTranslations('LogicEditor');
+
   const [logic, setLogic] = useState<QuestionLogic | null>(
     currentQuestion.logic
   );
@@ -76,7 +80,7 @@ export function LogicEditor({
 
   const handleAddRule = () => {
     if (availableQuestions.length === 0) {
-      setError("No previous questions available to create logic");
+      setError(`${t("no_previous_questions")}`);
       return;
     }
 
@@ -110,9 +114,7 @@ export function LogicEditor({
           allQuestions
         )
       ) {
-        setError(
-          "Circular dependency detected: This question cannot depend on a later question or itself"
-        );
+        setError(`${t("circular_dependency")}`);
         return;
       }
     }
@@ -134,7 +136,7 @@ export function LogicEditor({
     if (logic?.rules) {
       for (const rule of logic.rules) {
         if (!rule.triggerQuestionId || !rule.value) {
-          setError("Please complete all logic rules before saving");
+          setError(`${t("complete_all_rules")}`);
           return;
         }
       }
@@ -155,11 +157,10 @@ export function LogicEditor({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitBranch className="h-5 w-5" />
-            Conditional Logic
+            {t("conditional_logic")}
           </DialogTitle>
           <DialogDescription>
-            Show this question only when specific conditions are met based on
-            previous answers.
+            {t("show_when_conditions_met")}
           </DialogDescription>
         </DialogHeader>
 
@@ -168,8 +169,7 @@ export function LogicEditor({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                No previous questions available. Add questions before this one to
-                enable conditional logic.
+                {t("no_previous_questions")}
               </AlertDescription>
             </Alert>
           )}
@@ -185,7 +185,7 @@ export function LogicEditor({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold">
-                  Show this question if:
+                  {t("show_this_question_if")}
                 </Label>
                 <Button
                   variant="ghost"
@@ -193,7 +193,7 @@ export function LogicEditor({
                   onClick={handleRemoveAllLogic}
                   className="text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
-                  Remove All Logic
+                  {t("remove_all_logic")}
                 </Button>
               </div>
 
@@ -209,8 +209,7 @@ export function LogicEditor({
 
               {logic.rules.length === 1 && (
                 <div className="text-xs text-gray-500 italic">
-                  Note: MVP version supports single logic rule. Multiple rules with
-                  AND/OR operators coming in Phase 2.
+                  {t("mvp_note")}
                 </div>
               )}
             </div>
@@ -220,11 +219,11 @@ export function LogicEditor({
                 <GitBranch className="h-6 w-6 text-gray-400" />
               </div>
               <p className="text-sm text-gray-600 mb-4">
-                No conditional logic set for this question
+                {t("no_conditional_logic")}
               </p>
               {availableQuestions.length > 0 && (
                 <Button onClick={handleAddRule} variant="outline">
-                  Add Logic Rule
+                  {t("add_logic_rule")}
                 </Button>
               )}
             </div>
@@ -233,9 +232,9 @@ export function LogicEditor({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
-          <Button onClick={handleSave}>Save Logic</Button>
+          <Button onClick={handleSave}>{t("save_logic")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -253,6 +252,9 @@ function LogicRuleEditor({
   onUpdate: (rule: Partial<LogicRule>) => void;
   onDelete: () => void;
 }) {
+
+  const t = useTranslations('LogicEditor');
+
   const selectedQuestion = availableQuestions.find(
     (q) => q.id === rule.triggerQuestionId
   );
@@ -277,7 +279,7 @@ function LogicRuleEditor({
     <Card className="p-4">
       <div className="space-y-3">
         <div className="flex items-start justify-between">
-          <Label className="text-sm font-medium">Logic Rule</Label>
+          <Label className="text-sm font-medium">{t("logic_rule")}</Label>
           <Button
             variant="ghost"
             size="sm"
@@ -291,7 +293,7 @@ function LogicRuleEditor({
         <div className="grid gap-3">
           {/* Question Selection */}
           <div>
-            <Label className="text-xs text-gray-600">If answer to:</Label>
+            <Label className="text-xs text-gray-600">{t("if_answer_to")}</Label>
             <Select
               value={rule.triggerQuestionId}
               onValueChange={handleQuestionChange}
@@ -312,7 +314,7 @@ function LogicRuleEditor({
           {/* Condition Selection */}
           {selectedQuestion && (
             <div>
-              <Label className="text-xs text-gray-600">Condition:</Label>
+              <Label className="text-xs text-gray-600">{t("condition")}</Label>
               <Select
                 value={rule.condition}
                 onValueChange={(value) =>
@@ -336,7 +338,7 @@ function LogicRuleEditor({
           {/* Value Selection */}
           {selectedQuestion && (
             <div>
-              <Label className="text-xs text-gray-600">Value:</Label>
+              <Label className="text-xs text-gray-600">{t("value")}</Label>
               {renderValueInput(selectedQuestion, rule, onUpdate)}
             </div>
           )}
@@ -351,6 +353,9 @@ function renderValueInput(
   rule: LogicRule,
   onUpdate: (rule: Partial<LogicRule>) => void
 ) {
+
+  const t = useTranslations('LogicEditor');
+
   // For multiple choice, dropdown, yes/no - show dropdown of options
   if (
     question.type === "multiple_choice" ||
@@ -436,7 +441,7 @@ function renderValueInput(
       type="text"
       value={typeof rule.value === "string" ? rule.value : ""}
       onChange={(e) => onUpdate({ value: e.target.value })}
-      placeholder="Enter value"
+      placeholder={`${t("enter_value")}`}
       className="mt-1"
     />
   );

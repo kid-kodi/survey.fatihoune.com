@@ -24,11 +24,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, GripVertical, GitBranch, CheckCircle2, ExternalLink, Copy, Share2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, GripVertical, GitBranch, CheckCircle2, ExternalLink, Copy, Share2, Lock, Users } from "lucide-react";
 import { LogicEditor } from "@/components/LogicEditor";
 import { ShareDialog } from "@/components/ShareDialog";
 import { QuestionLogic } from "@/lib/logic-types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { VisibilitySelector } from "@/components/surveys/VisibilitySelector";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DndContext,
   closestCenter,
@@ -46,6 +58,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useTranslations } from "next-intl";
 
 type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
 
@@ -66,6 +79,8 @@ type Survey = {
   title: string;
   description: string | null;
   status: "draft" | "published" | "archived";
+  visibility?: "private" | "organization";
+  organizationId?: string | null;
   questions: Question[];
 };
 
@@ -79,10 +94,13 @@ const questionTypeDefaults: Record<QuestionType, any> = {
 };
 
 export default function SurveyEditPage() {
+  const t = useTranslations('SurveyEditor');
+  const tOrg = useTranslations('Organization');
   const router = useRouter();
   const params = useParams();
   const surveyId = params.id as string;
   const { data: session, isPending } = useSession();
+  const { currentOrganization, isPersonalWorkspace } = useOrganization();
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -91,6 +109,8 @@ export default function SurveyEditPage() {
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [pendingVisibility, setPendingVisibility] = useState<"private" | "organization" | null>(null);
+  const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -118,7 +138,7 @@ export default function SurveyEditPage() {
       const data = await response.json();
       setSurvey(data.survey);
     } catch (err) {
-      setError("Failed to load survey. Please try again.");
+      setError(`${t("failed_load_survey")}`);
       console.error("Fetch survey error:", err);
     } finally {
       setIsLoading(false);
@@ -134,7 +154,7 @@ export default function SurveyEditPage() {
         },
         body: JSON.stringify({
           type,
-          text: "Untitled Question",
+          text: t("untitled_question"),
           options: questionTypeDefaults[type],
           required: false,
         }),
@@ -156,7 +176,7 @@ export default function SurveyEditPage() {
       setShowTypeDialog(false);
     } catch (error) {
       console.error("Add question error:", error);
-      alert("Failed to add question. Please try again.");
+      alert(`${t("failed_add_question")}`);
     }
   };
 
@@ -194,12 +214,12 @@ export default function SurveyEditPage() {
       });
     } catch (error) {
       console.error("Update question error:", error);
-      alert("Failed to update question. Please try again.");
+      alert(`${t("failed_add_question")}`);
     }
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
-    if (!confirm("Are you sure you want to delete this question?")) {
+    if (!confirm(`${t("delete_question")}`)) {
       return;
     }
 
@@ -224,7 +244,7 @@ export default function SurveyEditPage() {
       });
     } catch (error) {
       console.error("Delete question error:", error);
-      alert("Failed to delete question. Please try again.");
+      alert(`${t("failed_delete_question")}`);
     }
   };
 
@@ -263,7 +283,7 @@ export default function SurveyEditPage() {
       }
     } catch (error) {
       console.error("Reorder questions error:", error);
-      alert("Failed to reorder questions. Please refresh the page.");
+      alert(`${t("failed_reorder_questions")}`);
       // Revert on error
       fetchSurvey();
     }
@@ -287,7 +307,7 @@ export default function SurveyEditPage() {
         if (data.validationErrors) {
           setValidationErrors(data.validationErrors);
         } else {
-          setError(data.error || "Failed to publish survey");
+          setError(data.error || `${t("failed_publish")}`);
         }
       } else {
         // Update local state
@@ -305,7 +325,7 @@ export default function SurveyEditPage() {
       }
     } catch (error) {
       console.error("Publish survey error:", error);
-      setError("An unexpected error occurred while publishing");
+      setError(`${t("unexpected_error_publishing")}`);
     } finally {
       setIsPublishing(false);
     }
@@ -313,7 +333,7 @@ export default function SurveyEditPage() {
 
   const handleUnpublish = async () => {
     if (!survey) return;
-    if (!confirm("Are you sure you want to unpublish this survey? It will no longer be accessible to respondents.")) {
+    if (!confirm(`${t("confirm_unpublish")}`)) {
       return;
     }
 
@@ -328,7 +348,7 @@ export default function SurveyEditPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Failed to unpublish survey");
+        setError(data.error || `${t("failed_unpublish")}`);
       } else {
         // Update local state
         setSurvey((prev) => {
@@ -341,9 +361,49 @@ export default function SurveyEditPage() {
       }
     } catch (error) {
       console.error("Unpublish survey error:", error);
-      setError("An unexpected error occurred while unpublishing");
+      setError(`${t("unexpected_error_unpublishing")}`);
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleVisibilityChange = (newVisibility: "private" | "organization") => {
+    setPendingVisibility(newVisibility);
+    setShowVisibilityDialog(true);
+  };
+
+  const confirmVisibilityChange = async () => {
+    if (!survey || !pendingVisibility) return;
+
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          visibility: pendingVisibility,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update visibility");
+      }
+
+      // Update local state
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          visibility: pendingVisibility,
+        };
+      });
+
+      setShowVisibilityDialog(false);
+      setPendingVisibility(null);
+    } catch (error) {
+      console.error("Error updating visibility:", error);
+      setError("Failed to update visibility");
     }
   };
 
@@ -351,13 +411,13 @@ export default function SurveyEditPage() {
     if (!survey) return;
     const url = `${window.location.origin}/s/${survey.uniqueId}`;
     navigator.clipboard.writeText(url);
-    alert("Public URL copied to clipboard!");
+    alert(`${t("public_url_copied")}`);
   };
 
   if (isPending || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">Loading...</p>
+        <p className="text-gray-600">{t("loading")}</p>
       </div>
     );
   }
@@ -379,14 +439,14 @@ export default function SurveyEditPage() {
                 className="mr-4"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
+                {t("back_to_dashboard")}
               </Button>
             </div>
           </div>
         </nav>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="rounded-md bg-red-50 p-4 text-sm text-red-800 border border-red-200">
-            {error || "Survey not found"}
+            {error || `${t("survey_not_found")}`}
           </div>
         </div>
       </div>
@@ -406,30 +466,31 @@ export default function SurveyEditPage() {
                 className="mr-4"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
+                {t("back")}
               </Button>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
                   {survey.title}
                 </h1>
-                <p className="text-sm text-gray-500">Survey Builder</p>
+                <p className="text-sm text-gray-500">{t("survey_builder")}</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               {survey.status === "draft" ? (
                 <>
-                  <span className="text-sm text-gray-500">Auto-saved</span>
+                  <span className="text-sm text-gray-500">{t("auto_saved")}</span>
                   <Button
                     onClick={handlePublish}
                     disabled={isPublishing}
                   >
-                    {isPublishing ? "Publishing..." : "Publish Survey"}
+                    {isPublishing ? `${t("publishing")}` : 
+                    `${t("publish_survey")}`}
                   </Button>
                 </>
               ) : (
                 <>
                   <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                    Published
+                    {t("published")}
                   </Badge>
                   <Button
                     variant="default"
@@ -437,7 +498,7 @@ export default function SurveyEditPage() {
                     onClick={() => setShareDialogOpen(true)}
                   >
                     <Share2 className="h-4 w-4 mr-2" />
-                    Share
+                    {t("share")}
                   </Button>
                   <Button
                     variant="outline"
@@ -445,7 +506,7 @@ export default function SurveyEditPage() {
                     onClick={copyPublicUrl}
                   >
                     <Copy className="h-4 w-4 mr-2" />
-                    Copy Link
+                    {t("copy_link")}
                   </Button>
                   <Button
                     variant="outline"
@@ -453,14 +514,15 @@ export default function SurveyEditPage() {
                     onClick={() => window.open(`/s/${survey.uniqueId}`, '_blank')}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    View
+                    {t("view")}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={handleUnpublish}
                     disabled={isPublishing}
                   >
-                    {isPublishing ? "Unpublishing..." : "Unpublish"}
+                    {isPublishing ? `${t("unpublishing")}` : 
+                    `${t("unpublish")}`}
                   </Button>
                 </>
               )}
@@ -478,7 +540,7 @@ export default function SurveyEditPage() {
             <AlertDescription className="text-green-800">
               <div className="flex items-center justify-between">
                 <span>
-                  <strong>Survey published successfully!</strong> Your survey is now live at:
+                  <strong>{t("survey_published_success")}</strong> {t("survey_live_at")}
                 </span>
                 <div className="flex items-center gap-2 ml-4">
                   <a
@@ -507,7 +569,7 @@ export default function SurveyEditPage() {
         {validationErrors.length > 0 && (
           <Alert className="mb-6 border-red-200 bg-red-50">
             <AlertDescription className="text-red-800">
-              <strong>Cannot publish survey:</strong>
+              <strong>{t("cannot_publish_survey")}</strong>
               <ul className="mt-2 list-disc list-inside">
                 {validationErrors.map((error, idx) => (
                   <li key={idx}>{error}</li>
@@ -530,11 +592,35 @@ export default function SurveyEditPage() {
               {survey.status === "published" && (
                 <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Live
+                  {t("live")}
                 </Badge>
               )}
             </div>
           </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Visibility Setting */}
+              {survey.organizationId && (
+                <div className="space-y-2">
+                  <Label htmlFor="visibility">{tOrg("visibility")}</Label>
+                  <VisibilitySelector
+                    value={survey.visibility || "organization"}
+                    onChange={(value) => {
+                      setPendingVisibility(value);
+                      setShowVisibilityDialog(true);
+                    }}
+                    disabled={false}
+                    isOrganizationContext={!!survey.organizationId}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {survey.visibility === "private"
+                      ? tOrg("visibility_private_help")
+                      : tOrg("visibility_organization_help")}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
         </Card>
 
         {/* Questions Section */}
@@ -542,23 +628,23 @@ export default function SurveyEditPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Questions</CardTitle>
+                <CardTitle>{t("questions")}</CardTitle>
                 <CardDescription>
-                  Add and edit survey questions
+                  {t("add_edit_questions")}
                 </CardDescription>
               </div>
               <Dialog open={showTypeDialog} onOpenChange={setShowTypeDialog}>
                 <DialogTrigger asChild>
                   <Button className="flex items-center gap-2">
                     <Plus className="h-4 w-4" />
-                    Add Question
+                    {t("add_question")}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-lg">
                   <DialogHeader>
-                    <DialogTitle>Select Question Type</DialogTitle>
+                    <DialogTitle>{t("select_question_type")}</DialogTitle>
                     <DialogDescription>
-                      Choose the type of question you want to add
+                      {t("choose_question_type")}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-3 py-4">
@@ -568,9 +654,9 @@ export default function SurveyEditPage() {
                       onClick={() => handleAddQuestion("multiple_choice")}
                     >
                       <div>
-                        <div className="font-semibold">Multiple Choice</div>
+                        <div className="font-semibold">{t("multiple_choice")}</div>
                         <div className="text-sm text-gray-500">
-                          Respondents choose one option
+                          {t("multiple_choice_desc")}
                         </div>
                       </div>
                     </Button>
@@ -580,9 +666,9 @@ export default function SurveyEditPage() {
                       onClick={() => handleAddQuestion("text_input")}
                     >
                       <div>
-                        <div className="font-semibold">Text Input</div>
+                        <div className="font-semibold">{t("text_input")}</div>
                         <div className="text-sm text-gray-500">
-                          Short or long text responses
+                          {t("text_input_desc")}
                         </div>
                       </div>
                     </Button>
@@ -592,9 +678,9 @@ export default function SurveyEditPage() {
                       onClick={() => handleAddQuestion("rating_scale")}
                     >
                       <div>
-                        <div className="font-semibold">Rating Scale</div>
+                        <div className="font-semibold">{t("rating_scale")}</div>
                         <div className="text-sm text-gray-500">
-                          Numeric rating (e.g., 1-5 stars)
+                          {t("rating_scale_desc")}
                         </div>
                       </div>
                     </Button>
@@ -604,9 +690,9 @@ export default function SurveyEditPage() {
                       onClick={() => handleAddQuestion("checkbox")}
                     >
                       <div>
-                        <div className="font-semibold">Checkbox</div>
+                        <div className="font-semibold">{t("checkbox")}</div>
                         <div className="text-sm text-gray-500">
-                          Select multiple options
+                          {t("checkbox_desc")}
                         </div>
                       </div>
                     </Button>
@@ -616,9 +702,9 @@ export default function SurveyEditPage() {
                       onClick={() => handleAddQuestion("dropdown")}
                     >
                       <div>
-                        <div className="font-semibold">Dropdown</div>
+                        <div className="font-semibold">{t("dropdown")}</div>
                         <div className="text-sm text-gray-500">
-                          Select from dropdown list
+                          {t("dropdown_desc")}
                         </div>
                       </div>
                     </Button>
@@ -628,9 +714,9 @@ export default function SurveyEditPage() {
                       onClick={() => handleAddQuestion("yes_no")}
                     >
                       <div>
-                        <div className="font-semibold">Yes/No</div>
+                        <div className="font-semibold">{t("yes_no")}</div>
                         <div className="text-sm text-gray-500">
-                          Simple binary choice
+                          {t("yes_no_desc")}
                         </div>
                       </div>
                     </Button>
@@ -646,14 +732,14 @@ export default function SurveyEditPage() {
                   <Plus className="h-8 w-8 text-gray-400" />
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-gray-900">
-                  No questions yet
+                  {t("no_questions_yet")}
                 </h3>
                 <p className="mb-4 text-gray-600">
-                  Add your first question to start building your survey
+                  {t("add_first_question")}
                 </p>
                 <Button onClick={() => setShowTypeDialog(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Question
+                  {t("add_question")}
                 </Button>
               </div>
             ) : (
@@ -694,6 +780,28 @@ export default function SurveyEditPage() {
           uniqueId={survey.uniqueId}
         />
       )}
+
+      {/* Visibility Change Confirmation Dialog */}
+      <AlertDialog open={showVisibilityDialog} onOpenChange={setShowVisibilityDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tOrg("change_visibility_confirm_title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingVisibility === "private"
+                ? tOrg("change_visibility_to_private_confirm")
+                : tOrg("change_visibility_to_organization_confirm")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingVisibility(null)}>
+              {tOrg("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmVisibilityChange}>
+              {tOrg("confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -713,6 +821,8 @@ function QuestionEditor({
 }) {
   const [localQuestion, setLocalQuestion] = useState(question);
   const [showLogicEditor, setShowLogicEditor] = useState(false);
+
+  const t = useTranslations('SurveyEditor');
 
   const {
     attributes,
@@ -772,7 +882,7 @@ function QuestionEditor({
                 value={localQuestion.text}
                 onChange={(e) => handleTextChange(e.target.value)}
                 className="text-lg font-semibold border-none shadow-none px-0 focus-visible:ring-0"
-                placeholder="Question text"
+                placeholder={`${t("question_text")}`}
               />
               <Button
                 variant="ghost"
@@ -821,7 +931,7 @@ function QuestionEditor({
             {question.type === "text_input" && (
               <div className="space-y-3">
                 <div className="flex items-center gap-4">
-                  <Label className="text-sm text-gray-600">Type:</Label>
+                  <Label className="text-sm text-gray-600">{t("type")}</Label>
                   <div className="flex gap-2">
                     <Button
                       variant={localQuestion.options.variant === "short" ? "default" : "outline"}
@@ -830,7 +940,7 @@ function QuestionEditor({
                         handleOptionsChange({ ...localQuestion.options, variant: "short" })
                       }
                     >
-                      Short Text
+                      {t("short_text")}
                     </Button>
                     <Button
                       variant={localQuestion.options.variant === "long" ? "default" : "outline"}
@@ -839,12 +949,12 @@ function QuestionEditor({
                         handleOptionsChange({ ...localQuestion.options, variant: "long" })
                       }
                     >
-                      Long Text
+                      {t("long_text")}
                     </Button>
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm text-gray-600">Placeholder:</Label>
+                  <Label className="text-sm text-gray-600">{t("placeholder")}</Label>
                   <Input
                     value={localQuestion.options.placeholder || ""}
                     onChange={(e) =>
@@ -853,7 +963,7 @@ function QuestionEditor({
                         placeholder: e.target.value,
                       })
                     }
-                    placeholder="e.g., Enter your answer here..."
+                    placeholder={`${t("placeholder_example")}`}
                     className="mt-1"
                   />
                 </div>
@@ -865,7 +975,7 @@ function QuestionEditor({
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-sm text-gray-600">Min Value:</Label>
+                    <Label className="text-sm text-gray-600">{t("min_value")}</Label>
                     <Input
                       type="number"
                       value={localQuestion.options.min || 1}
@@ -879,7 +989,7 @@ function QuestionEditor({
                     />
                   </div>
                   <div>
-                    <Label className="text-sm text-gray-600">Max Value:</Label>
+                    <Label className="text-sm text-gray-600">{t("max_value")}</Label>
                     <Input
                       type="number"
                       value={localQuestion.options.max || 5}
@@ -895,7 +1005,7 @@ function QuestionEditor({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-sm text-gray-600">Min Label:</Label>
+                    <Label className="text-sm text-gray-600">{t("min_label")}</Label>
                     <Input
                       value={localQuestion.options.minLabel || ""}
                       onChange={(e) =>
@@ -904,12 +1014,12 @@ function QuestionEditor({
                           minLabel: e.target.value,
                         })
                       }
-                      placeholder="e.g., Poor"
+                      placeholder={`${t("min_label_example")}`}
                       className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label className="text-sm text-gray-600">Max Label:</Label>
+                    <Label className="text-sm text-gray-600">{t("max_label")}</Label>
                     <Input
                       value={localQuestion.options.maxLabel || ""}
                       onChange={(e) =>
@@ -918,7 +1028,7 @@ function QuestionEditor({
                           maxLabel: e.target.value,
                         })
                       }
-                      placeholder="e.g., Excellent"
+                      placeholder={`${t("max_label_example")}`}
                       className="mt-1"
                     />
                   </div>
@@ -930,10 +1040,10 @@ function QuestionEditor({
             {question.type === "yes_no" && (
               <div className="flex gap-2">
                 <div className="flex h-9 items-center rounded-md border border-gray-300 px-4">
-                  Yes
+                  {t("yes")}
                 </div>
                 <div className="flex h-9 items-center rounded-md border border-gray-300 px-4">
-                  No
+                  {t("no")}
                 </div>
               </div>
             )}
@@ -947,7 +1057,7 @@ function QuestionEditor({
                     onCheckedChange={handleRequiredToggle}
                   />
                   <Label htmlFor={`required-${question.id}`} className="text-sm">
-                    Required
+                    {t("required")}
                   </Label>
                 </div>
                 <Button
@@ -957,14 +1067,14 @@ function QuestionEditor({
                   className="h-8 text-xs"
                 >
                   <GitBranch className="h-3.5 w-3.5 mr-1.5" />
-                  {localQuestion.logic ? "Edit Logic" : "Add Logic"}
+                  {localQuestion.logic ? `${t("edit_logic")}` : `${t("add_logic")}`}
                 </Button>
               </div>
               <div className="flex items-center gap-2">
                 {localQuestion.logic && (
                   <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800 hover:bg-purple-100">
                     <GitBranch className="h-3 w-3 mr-1" />
-                    Has Logic
+                    {t("has_logic")}
                   </Badge>
                 )}
                 <span className="text-xs text-gray-500">
@@ -996,6 +1106,7 @@ function ChoiceOptions({
   onChange: (choices: string[]) => void;
   icon: "radio" | "checkbox" | "dropdown";
 }) {
+  const t = useTranslations('SurveyEditor');
   const handleAddOption = () => {
     onChange([...choices, `Option ${choices.length + 1}`]);
   };
@@ -1052,7 +1163,7 @@ function ChoiceOptions({
         className="mt-2"
       >
         <Plus className="h-4 w-4 mr-2" />
-        Add Option
+        {t("add_option")}
       </Button>
     </div>
   );

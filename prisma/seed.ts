@@ -777,6 +777,258 @@ async function main() {
 
   console.log('✅ Created 2 sample responses');
 
+  // ============================================
+  // STEP 7: Seed Subscription Plans
+  // ============================================
+  console.log('\n💳 Creating subscription plans...');
+
+  // Free Plan (USD) - Default for all users
+  const freePlanUSD = await prisma.subscriptionPlan.upsert({
+    where: {
+      name_currency: {
+        name: 'Free',
+        currency: 'USD'
+      }
+    },
+    update: {},
+    create: {
+      name: 'Free',
+      description: 'Perfect for getting started',
+      price: 0,
+      currency: 'USD',
+      interval: 'month',
+      features: [
+        '5 surveys',
+        'Basic analytics',
+        'CSV export',
+        'Email support'
+      ],
+      isActive: true,
+    },
+  });
+  console.log('  ✓ Free Plan (USD)');
+
+  // Pro Plan (USD - via Stripe)
+  const proPlanUSD = await prisma.subscriptionPlan.upsert({
+    where: {
+      name_currency: {
+        name: 'Pro',
+        currency: 'USD'
+      }
+    },
+    update: {},
+    create: {
+      name: 'Pro',
+      description: 'For growing teams',
+      price: 2900, // $29.00 in cents
+      currency: 'USD',
+      interval: 'month',
+      stripeProductId: 'prod_XXX', // Replace with actual Stripe product ID
+      stripePriceId: 'price_XXX',
+      features: [
+        '1 organization',
+        '5 team members',
+        '10 surveys per user (50 max)',
+        'Advanced analytics',
+        'Priority support'
+      ],
+      isActive: true,
+    },
+  });
+  console.log('  ✓ Pro Plan (USD)');
+
+  // Pro Plan (XOF - via Wave/Orange Money)
+  const proPlanXOF = await prisma.subscriptionPlan.upsert({
+    where: {
+      name_currency: {
+        name: 'Pro',
+        currency: 'XOF'
+      }
+    },
+    update: {},
+    create: {
+      name: 'Pro',
+      description: 'Pour les équipes en croissance',
+      price: 1500000, // 15,000 FCFA (stored in centimes)
+      currency: 'XOF',
+      interval: 'month',
+      waveProductId: 'wave_prod_XXX',
+      orangeProductId: 'orange_prod_XXX',
+      features: [
+        '1 organisation',
+        '5 membres',
+        '10 sondages par utilisateur (50 max)',
+        'Analyses avancées',
+        'Support prioritaire'
+      ],
+      isActive: true,
+    },
+  });
+  console.log('  ✓ Pro Plan (XOF/CFA Franc)');
+
+  // Premium Plan (USD - via Stripe)
+  const premiumPlanUSD = await prisma.subscriptionPlan.upsert({
+    where: {
+      name_currency: {
+        name: 'Premium',
+        currency: 'USD'
+      }
+    },
+    update: {},
+    create: {
+      name: 'Premium',
+      description: 'For large organizations',
+      price: 9900, // $99.00 in cents
+      currency: 'USD',
+      interval: 'month',
+      stripeProductId: 'prod_YYY',
+      stripePriceId: 'price_YYY',
+      features: [
+        'Unlimited organizations',
+        'Unlimited members',
+        'Unlimited surveys',
+        'Custom branding',
+        'API access',
+        'Dedicated support'
+      ],
+      isActive: true,
+    },
+  });
+  console.log('  ✓ Premium Plan (USD)');
+
+  // Premium Plan (XOF - via Wave/Orange Money)
+  const premiumPlanXOF = await prisma.subscriptionPlan.upsert({
+    where: {
+      name_currency: {
+        name: 'Premium',
+        currency: 'XOF'
+      }
+    },
+    update: {},
+    create: {
+      name: 'Premium',
+      description: 'Pour les grandes organisations',
+      price: 5000000, // 50,000 FCFA (stored in centimes)
+      currency: 'XOF',
+      interval: 'month',
+      waveProductId: 'wave_prod_YYY',
+      orangeProductId: 'orange_prod_YYY',
+      features: [
+        'Organisations illimitées',
+        'Membres illimités',
+        'Sondages illimités',
+        'Image de marque personnalisée',
+        "Accès à l'API",
+        'Support dédié'
+      ],
+      isActive: true,
+    },
+  });
+  console.log('  ✓ Premium Plan (XOF/CFA Franc)');
+
+  // Custom Plan
+  const customPlan = await prisma.subscriptionPlan.upsert({
+    where: {
+      name_currency: {
+        name: 'Custom',
+        currency: 'USD'
+      }
+    },
+    update: {},
+    create: {
+      name: 'Custom',
+      description: 'Enterprise solution',
+      price: 0, // Contact for pricing
+      currency: 'USD',
+      interval: 'month',
+      features: [
+        'Everything in Premium',
+        'Custom contracts',
+        'SSO/SAML',
+        'Dedicated account manager',
+        'SLA guarantees'
+      ],
+      isActive: true,
+    },
+  });
+  console.log('  ✓ Custom Plan');
+
+  console.log('✅ Created 6 subscription plans');
+
+  // ============================================
+  // STEP 8: Seed Plan Limits
+  // ============================================
+  console.log('\n📏 Creating plan limits...');
+
+  // Free Plan Limits
+  await prisma.planLimit.createMany({
+    data: [
+      { planId: freePlanUSD.id, limitType: 'surveys', limitValue: '5' },
+      { planId: freePlanUSD.id, limitType: 'organizations', limitValue: '0' },
+      { planId: freePlanUSD.id, limitType: 'users', limitValue: '1' },
+    ],
+    skipDuplicates: true,
+  });
+  console.log('  ✓ Free Plan limits');
+
+  // Pro Plan Limits (USD and XOF have same limits)
+  await prisma.planLimit.createMany({
+    data: [
+      { planId: proPlanUSD.id, limitType: 'surveys', limitValue: '50' },
+      { planId: proPlanUSD.id, limitType: 'organizations', limitValue: '1' },
+      { planId: proPlanUSD.id, limitType: 'users', limitValue: '5' },
+      { planId: proPlanXOF.id, limitType: 'surveys', limitValue: '50' },
+      { planId: proPlanXOF.id, limitType: 'organizations', limitValue: '1' },
+      { planId: proPlanXOF.id, limitType: 'users', limitValue: '5' },
+    ],
+    skipDuplicates: true,
+  });
+  console.log('  ✓ Pro Plan limits');
+
+  // Premium Plan Limits (unlimited)
+  await prisma.planLimit.createMany({
+    data: [
+      { planId: premiumPlanUSD.id, limitType: 'surveys', limitValue: 'unlimited' },
+      { planId: premiumPlanUSD.id, limitType: 'organizations', limitValue: 'unlimited' },
+      { planId: premiumPlanUSD.id, limitType: 'users', limitValue: 'unlimited' },
+      { planId: premiumPlanXOF.id, limitType: 'surveys', limitValue: 'unlimited' },
+      { planId: premiumPlanXOF.id, limitType: 'organizations', limitValue: 'unlimited' },
+      { planId: premiumPlanXOF.id, limitType: 'users', limitValue: 'unlimited' },
+    ],
+    skipDuplicates: true,
+  });
+  console.log('  ✓ Premium Plan limits');
+
+  // Custom Plan Limits (unlimited)
+  await prisma.planLimit.createMany({
+    data: [
+      { planId: customPlan.id, limitType: 'surveys', limitValue: 'unlimited' },
+      { planId: customPlan.id, limitType: 'organizations', limitValue: 'unlimited' },
+      { planId: customPlan.id, limitType: 'users', limitValue: 'unlimited' },
+    ],
+    skipDuplicates: true,
+  });
+  console.log('  ✓ Custom Plan limits');
+
+  console.log('✅ Created plan limits for all subscription tiers');
+
+  // ============================================
+  // STEP 9: Assign Free Plan to Test Users
+  // ============================================
+  console.log('\n🎁 Assigning Free plan to test users...');
+
+  await prisma.user.update({
+    where: { id: user1.id },
+    data: { currentPlanId: freePlanUSD.id },
+  });
+
+  await prisma.user.update({
+    where: { id: user2.id },
+    data: { currentPlanId: freePlanUSD.id },
+  });
+
+  console.log('✅ Test users assigned to Free plan');
+
   console.log('\n🎉 Seeding completed successfully!');
   console.log('\n📊 Summary:');
   console.log(`  • Organizations: 1 (System)`);
@@ -786,6 +1038,8 @@ async function main() {
   console.log('  • Organization Members: 2');
   console.log('  • Test Surveys: 2');
   console.log('  • Sample Responses: 2');
+  console.log('  • Subscription Plans: 6 (Free, Pro-USD, Pro-XOF, Premium-USD, Premium-XOF, Custom)');
+  console.log('  • Plan Limits: 15 (5 surveys for Free, 50 for Pro, unlimited for Premium/Custom)');
 }
 
 main()

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { organizationRepository } from '@/lib/repositories/organization-repository';
+import { checkOrganizationLimit, incrementOrganizationCount } from '@/lib/utils/subscription-limits';
 
 // Validation schema for creating organization
 const createOrganizationSchema = z.object({
@@ -79,12 +80,29 @@ export async function POST(request: NextRequest) {
 
     const { name, description } = validationResult.data;
 
+    // Check organization limit
+    const limitCheck = await checkOrganizationLimit(session.user.id);
+
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: limitCheck.reason,
+          currentCount: limitCheck.currentCount,
+          limit: limitCheck.limit,
+        },
+        { status: 403 }
+      );
+    }
+
     // Create organization with owner and default roles
     const organization = await organizationRepository.create({
       name,
       description,
       ownerId: session.user.id,
     });
+
+    // Increment usage count
+    await incrementOrganizationCount(session.user.id);
 
     // Fetch the complete organization with member info
     const completeOrg = await organizationRepository.findById(organization.id);

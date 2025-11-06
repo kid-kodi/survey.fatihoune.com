@@ -60,11 +60,16 @@ export function InviteMemberModal({
   onSuccess,
 }: InviteMemberModalProps) {
   const t = useTranslations("Organization");
+  const tSub = useTranslations("Subscription");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
+  const [usage, setUsage] = useState<{
+    current: number;
+    limit: number | 'unlimited';
+  } | null>(null);
 
   const form = useForm<InviteMemberFormData>({
     resolver: zodResolver(inviteMemberSchema),
@@ -74,10 +79,11 @@ export function InviteMemberModal({
     },
   });
 
-  // Fetch roles for the organization
+  // Fetch roles and usage for the organization
   useEffect(() => {
     if (open) {
       fetchRoles();
+      fetchUsage();
     }
   }, [open, organizationId]);
 
@@ -97,6 +103,21 @@ export function InviteMemberModal({
       toast.error("Failed to load roles");
     } finally {
       setLoadingRoles(false);
+    }
+  }
+
+  async function fetchUsage() {
+    try {
+      const response = await fetch(`/api/usage/members?organizationId=${organizationId}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch member usage");
+      }
+
+      const data = await response.json();
+      setUsage(data);
+    } catch (error) {
+      console.error("Error fetching member usage:", error);
     }
   }
 
@@ -168,6 +189,14 @@ export function InviteMemberModal({
             Send an invitation to join your organization. They will receive an
             email with a link to accept.
           </DialogDescription>
+          {usage && usage.limit !== 'unlimited' && (
+            <p className="text-sm text-gray-600 mt-2">
+              {tSub('members_used', {
+                current: usage.current,
+                limit: usage.limit,
+              })}
+            </p>
+          )}
         </DialogHeader>
 
         <Form {...form}>

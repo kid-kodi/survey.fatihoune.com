@@ -227,6 +227,26 @@ export default function SurveyResponsesPage() {
                 {t("back_to_dashboard")}
               </Button>
             </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/surveys/${surveyId}/invitations`)}
+              >
+                {t("invitations")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/surveys/${surveyId}/analytics`)}
+              >
+                {t("analytics")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/surveys/${surveyId}/edit`)}
+              >
+                {t("edit")}
+              </Button>
+            </div>
           </div>
         </div>
       </nav>

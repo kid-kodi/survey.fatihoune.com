@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { canAccessSurvey } from "@/lib/utils/visibility";
+import { decrementSurveyUsage } from "@/lib/utils/subscription-limits";
 
 export async function GET(
   request: NextRequest,
@@ -168,6 +169,63 @@ export async function PATCH(
     console.error("Update survey error:", error);
     return NextResponse.json(
       { error: "Failed to update survey" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // Get the session from better-auth
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { id } = await params;
+
+    // Fetch the survey to verify ownership
+    const survey = await prisma.survey.findUnique({
+      where: { id },
+    });
+
+    if (!survey) {
+      return NextResponse.json(
+        { error: "Survey not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if survey belongs to the authenticated user
+    if (survey.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 403 }
+      );
+    }
+
+    // Delete the survey
+    await prisma.survey.delete({
+      where: { id },
+    });
+
+    // Decrement usage count
+    await decrementSurveyUsage(session.user.id, survey.organizationId);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Delete survey error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete survey" },
       { status: 500 }
     );
   }

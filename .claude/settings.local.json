@@ -18,7 +18,11 @@
       "Bash(pnpm dev)",
       "Bash(git commit:*)",
       "Bash(rmdir:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(pnpm email:dev:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm exec eslint:*)",
+      "Bash(pnpm exec tsc:*)"
     ],
     "deny": [],
     "ask": []

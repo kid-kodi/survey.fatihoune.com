@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ type Visibility = "private" | "organization";
 export default function NewSurveyPage() {
   const t = useTranslations('NewSurvey');
   const tOrg = useTranslations('Organization');
+  const tSub = useTranslations('Subscription');
   const router = useRouter();
   const { currentOrganization, isPersonalWorkspace } = useOrganization();
   const [mode, setMode] = useState<CreateMode>("choice");
@@ -38,6 +39,17 @@ export default function NewSurveyPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [usage, setUsage] = useState<{
+    current: number;
+    limit: number | 'unlimited';
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/usage/surveys')
+      .then((res) => res.json())
+      .then((data) => setUsage(data))
+      .catch((err) => console.error('Failed to fetch survey usage:', err));
+  }, []);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -322,6 +334,14 @@ export default function NewSurveyPage() {
                 ? `${t("template_customize")}`
                 : `${t("scratch_customize")}`}
             </CardDescription>
+            {usage && usage.limit !== 'unlimited' && (
+              <p className="text-sm text-gray-600 mt-2">
+                {tSub('surveys_used', {
+                  current: usage.current,
+                  limit: usage.limit,
+                })}
+              </p>
+            )}
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">

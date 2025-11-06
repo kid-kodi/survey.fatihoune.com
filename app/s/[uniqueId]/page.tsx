@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, FileText, CheckCircle2 } from "lucide-react";
@@ -40,7 +40,9 @@ type Survey = {
 export default function PublicSurveyPage() {
   const t = useTranslations('PublicSurvey');
   const params = useParams();
+  const searchParams = useSearchParams();
   const uniqueId = params.uniqueId as string;
+  const invitationToken = searchParams.get("invitation");
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -314,7 +316,12 @@ export default function PublicSurveyPage() {
 
     try {
       // Only submit answers for visible questions (exclude hidden questions based on logic)
-      const response = await fetch(`/api/public/surveys/${survey?.uniqueId}/responses`, {
+      // Add invitation token to URL if present
+      const url = invitationToken
+        ? `/api/public/surveys/${survey?.uniqueId}/responses?invitation=${invitationToken}`
+        : `/api/public/surveys/${survey?.uniqueId}/responses`;
+
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

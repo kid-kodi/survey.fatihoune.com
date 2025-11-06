@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { getTemplateById } from "@/lib/templates";
+import { checkSurveyLimit, incrementSurveyUsage } from "@/lib/utils/subscription-limits";
 
 export async function GET(request: NextRequest) {
   try {
@@ -146,6 +147,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, description, templateId, visibility, organizationId } = body;
 
+    // Check survey limit BEFORE creating
+    const limitCheck = await checkSurveyLimit(session.user.id);
+
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: 'survey_limit_reached',
+          message: limitCheck.message,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+        },
+        { status: 403 }
+      );
+    }
+
     // Validate title
     if (!title || typeof title !== "string" || !title.trim()) {
       return NextResponse.json(
@@ -197,6 +213,9 @@ export async function POST(request: NextRequest) {
         questions: true,
       },
     });
+
+    // Increment usage count
+    await incrementSurveyUsage(session.user.id, organizationId);
 
     return NextResponse.json({
       success: true,

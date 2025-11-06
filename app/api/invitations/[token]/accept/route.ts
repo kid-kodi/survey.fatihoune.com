@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isInvitationExpired } from "@/lib/utils/invitation";
+import { checkMemberLimit } from "@/lib/utils/subscription-limits";
 
 /**
  * POST /api/invitations/[token]/accept
@@ -74,6 +75,21 @@ export async function POST(
           name: invitation.organization.name,
         },
       });
+    }
+
+    // Re-check member limit before accepting (prevent race conditions)
+    const limitCheck = await checkMemberLimit(invitation.organizationId);
+
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: limitCheck.reason,
+          message: "Organization has reached its member limit",
+          currentCount: limitCheck.currentCount,
+          limit: limitCheck.limit,
+        },
+        { status: 403 }
+      );
     }
 
     // Create organization member and delete invitation in a transaction

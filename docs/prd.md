@@ -23,6 +23,7 @@ This PRD defines the MVP for a modern survey platform that balances simplicity w
 | Date | Version | Description | Author |
 |------|---------|-------------|--------|
 | 2025-11-01 | 1.0 | Initial PRD creation | John (PM Agent) |
+| 2025-11-05 | 2.0 | Added Epic 6 (Subscription & Billing) and Epic 7 (Marketing Website); Added FR39-FR52 for subscription features | Sarah (PO Agent) |
 
 ---
 
@@ -68,6 +69,28 @@ This PRD defines the MVP for a modern survey platform that balances simplicity w
 - **FR36**: Permission system controls access to: manage_organization, manage_users, manage_roles, create_surveys, manage_all_surveys, manage_own_surveys, view_analytics, export_data
 - **FR37**: Role inheritance ensures users automatically receive permissions from their assigned roles
 - **FR38**: Default roles (Owner, Admin, Agent) are automatically created for new organizations
+- **FR39**: Users can subscribe to paid plans (Pro, Premium) via Stripe checkout
+- **FR40**: System enforces survey creation limits based on subscription plan (Free: 5, Pro: 50, Premium: unlimited)
+- **FR41**: System enforces organization creation limits based on subscription plan (Free: 0, Pro: 1, Premium: unlimited)
+- **FR42**: System enforces organization member limits based on subscription plan (Pro: 5, Premium: unlimited)
+- **FR43**: Users can upgrade their subscription plan through self-service checkout
+- **FR44**: Users can downgrade their subscription plan through Stripe Customer Portal
+- **FR45**: Users can view their subscription status, billing history, and payment method in billing dashboard
+- **FR46**: Users can cancel their subscription with cancellation taking effect at period end
+- **FR47**: New users can start a 14-day free trial of Pro plan without payment information
+- **FR48**: Visitors can view marketing landing page with features, benefits, and pricing overview
+- **FR49**: Visitors can view detailed features page showcasing all platform capabilities
+- **FR50**: Visitors can contact the team via contact form for enterprise/custom plans
+- **FR51**: Platform displays usage indicators showing current usage vs. plan limits (surveys, organizations, members)
+- **FR52**: System sends email notifications for subscription events (trial expiring, payment failed, subscription confirmed)
+- **FR53**: Users can select payment provider (Stripe, Wave, or Orange Money) when subscribing
+- **FR54**: System supports multiple currencies (USD, EUR, XOF/CFA Franc) with proper formatting
+- **FR55**: Pricing automatically adapts to user's location and displays appropriate currency
+- **FR56**: Wave mobile money integration enables subscriptions for West African users
+- **FR57**: Orange Money integration enables subscriptions across 17+ African countries
+- **FR58**: Payment webhooks handle events from Stripe, Wave, and Orange Money
+- **FR59**: Users can view billing history with original payment currency and provider
+- **FR60**: Currency conversion rates displayed on pricing page for transparency
 
 ### Non Functional
 
@@ -244,6 +267,12 @@ The application will be built as a unified Next.js application leveraging both s
 
 ### Epic 5: RBAC & Organization Management
 **Goal**: Enable multi-tenant organization management with role-based access control, allowing teams to collaborate on surveys with granular permissions.
+
+### Epic 6: Subscription & Billing Management
+**Goal**: Transform the survey platform into a fully monetized SaaS offering with tiered subscription plans (Free, Pro, Premium, Custom), integrated Stripe payment processing, usage limit enforcement, and self-service billing management.
+
+### Epic 7: Marketing Website & Landing Pages
+**Goal**: Create a comprehensive public-facing marketing website with landing page, pricing page, features showcase, about page, contact form, blog, and SEO optimization to drive user acquisition and conversions.
 
 ---
 
@@ -1107,6 +1136,51 @@ so that I can clean up my organization list.
 
 ---
 
+## Epic 6: Subscription & Billing Management
+
+**Epic Goal**: Transform the survey platform into a fully monetized SaaS offering with tiered subscription plans, integrated **multi-payment provider support** (Stripe, Wave, Orange Money), **multi-currency pricing** (USD, EUR, XOF), usage limit enforcement, and self-service billing management. This epic enables users to subscribe to Free, Pro, or Premium plans with automatic enforcement of survey limits, organization restrictions, and user caps. By the end of this epic, the platform supports revenue generation through subscriptions with flexible payment options for global (Stripe) and African markets (Wave, Orange Money), providing a seamless upgrade/downgrade experience.
+
+**Subscription Tiers**:
+- **Free**: Up to 5 surveys per account, no organizations
+- **Pro**: 1 organization, 5 users max, 10 surveys per user (50 total max)
+  - USD: $29/month (Stripe)
+  - XOF: 15,000 FCFA/month (Wave, Orange Money)
+- **Premium**: Unlimited organizations, users, and surveys
+  - USD: $99/month (Stripe)
+  - XOF: 50,000 FCFA/month (Wave, Orange Money)
+- **Custom**: Enterprise tier requiring contact (no self-service), custom pricing
+
+**Payment Providers**:
+- **Stripe**: Global credit/debit cards, Apple Pay, Google Pay (USD, EUR)
+- **Wave**: Mobile money for Senegal, Côte d'Ivoire, Mali, Burkina Faso (XOF)
+- **Orange Money**: Mobile money across 17+ African countries (XOF)
+
+For detailed user stories and acceptance criteria, see: `docs/prd/epic-6-subscription-billing.md`
+
+**Epic 6 Stories**: 16 stories covering database schema (multi-payment provider support), Stripe integration, Wave integration, Orange Money integration, webhooks (all 3 providers), usage limit enforcement (surveys/organizations/members), pricing page, payment provider selection UI, multi-currency pricing display, upgrade/downgrade flows, billing dashboard, subscription indicators, Custom plan contact form, grandfathering strategy, and Pro trial period.
+
+---
+
+## Epic 7: Marketing Website & Landing Pages
+
+**Epic Goal**: Create a comprehensive public-facing marketing website with landing page, pricing page, features showcase, services overview, about page, contact form, and SEO optimization. This epic transforms the platform from an application-only product into a complete SaaS offering with professional marketing presence. By the end of this epic, the platform will have a polished marketing website that drives user acquisition, communicates value propositions, and converts visitors into registered users.
+
+**Marketing Website Components**:
+- Landing page at root `/` with hero, features, benefits, testimonials, CTA
+- Features/Services page at `/features`
+- About page at `/about`
+- Contact page at `/contact`
+- Blog foundation at `/blog`
+- Legal pages (Privacy Policy, Terms, Cookies)
+- SEO optimization, analytics integration
+- Multi-language support (EN/FR)
+
+For detailed user stories and acceptance criteria, see: `docs/prd/epic-7-marketing-website.md`
+
+**Epic 7 Stories**: 18 stories covering landing page sections (hero, features, how it works, testimonials, pricing teaser, final CTA), features page, about page, contact form, blog foundation, footer/navigation, SEO optimization, analytics integration, performance optimization, legal pages, multi-language support, email templates, and error pages.
+
+---
+
 ## Checklist Results Report
 
 ### PM Checklist Execution
@@ -1117,10 +1191,10 @@ so that I can clean up my organization list.
 
 ✅ **Goals Defined**: Clear business and user goals established with measurable outcomes
 ✅ **Background Context**: Problem statement and solution approach documented
-✅ **Requirements Complete**: 38 Functional Requirements and 18 Non-Functional Requirements specified
+✅ **Requirements Complete**: 60 Functional Requirements and 18 Non-Functional Requirements specified
 ✅ **UI Goals Documented**: UX vision, interaction paradigms, core screens, accessibility (WCAG AA), branding, and platforms defined
 ✅ **Technical Assumptions Clear**: Repository structure (Monorepo), architecture (Monolithic Next.js), testing strategy, and all technology choices documented
-✅ **Epic Sequencing Logical**: 5 epics follow agile best practices with incremental value delivery
+✅ **Epic Sequencing Logical**: 7 epics follow agile best practices with incremental value delivery
 ✅ **Story Sizing Appropriate**: Stories scoped for single-session AI agent execution (2-4 hour junior developer equivalent)
 ✅ **Acceptance Criteria Testable**: All stories have clear, specific, and verifiable acceptance criteria
 ✅ **Dependencies Identified**: Stories within epics sequenced to avoid forward dependencies
@@ -1186,6 +1260,6 @@ Reference the Technical Assumptions section for technology choices (Next.js 16, 
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-11-01
-**Status**: Complete - Ready for Architecture & UX Design
+**Document Version**: 2.0
+**Last Updated**: 2025-11-05
+**Status**: Complete - Expanded with Subscription & Marketing Features (Epics 6-7)

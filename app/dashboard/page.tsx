@@ -27,6 +27,13 @@ import Logo from "@/components/Logo";
 import UserButton from "@/components/UserButton";
 import { useTranslations } from "next-intl";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { UpgradeButton } from "@/components/subscription/UpgradeButton";
+import { PlanBadge } from "@/components/subscription/PlanBadge";
+import { SurveyUsageWidget } from "@/components/subscription/SurveyUsageWidget";
+import { OrganizationUsageWidget } from "@/components/subscription/OrganizationUsageWidget";
+import { MemberUsageWidget } from "@/components/subscription/MemberUsageWidget";
+import { PaymentWarningBanner } from "@/components/subscription/PaymentWarningBanner";
+import { GracePeriodNotice } from "@/components/subscription/GracePeriodNotice";
 
 type Survey = {
   id: string;
@@ -60,6 +67,7 @@ export default function DashboardPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
+  const [userPlan, setUserPlan] = useState<string>("Free");
 
   const t = useTranslations('Dashboard');
 
@@ -68,7 +76,9 @@ export default function DashboardPage() {
     if (session?.user) {
       fetchSurveys();
       fetchDashboardStats();
+      fetchUserPlan();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, currentOrganization, isPersonalWorkspace]);
 
   const fetchSurveys = async () => {
@@ -112,6 +122,23 @@ export default function DashboardPage() {
       setStats(data.stats);
     } catch (err) {
       console.error("Fetch dashboard stats error:", err);
+    }
+  };
+
+  const fetchUserPlan = async () => {
+    try {
+      const response = await fetch("/api/user/plan");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch user plan");
+      }
+
+      const data = await response.json();
+      setUserPlan(data.plan?.name || "Free");
+    } catch (err) {
+      console.error("Fetch user plan error:", err);
+      // Default to Free if fetch fails
+      setUserPlan("Free");
     }
   };
 
@@ -265,6 +292,8 @@ export default function DashboardPage() {
               <Logo />
             </div>
             <div className="flex items-center gap-4">
+              <PlanBadge />
+              <UpgradeButton currentPlan={userPlan} />
               <OrganizationSelector />
               <UserButton />
             </div>
@@ -274,6 +303,9 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PaymentWarningBanner />
+        <GracePeriodNotice />
+
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">
@@ -311,6 +343,13 @@ export default function DashboardPage() {
               {t("create_survey")}
             </Button>
           </div>
+        </div>
+
+        {/* Usage Widgets */}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+          <SurveyUsageWidget />
+          <OrganizationUsageWidget />
+          <MemberUsageWidget />
         </div>
 
         {/* Overview Stats */}

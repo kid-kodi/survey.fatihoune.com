@@ -7,6 +7,12 @@ import {
   generateInvitationToken,
   getInvitationExpiration,
 } from "@/lib/utils/invitation";
+import { sendEmail } from "@/lib/services/email-service";
+import {
+  OrganizationInvitationEmail,
+  getInvitationEmailSubject,
+} from "@/lib/email-templates/OrganizationInvitationEmail";
+import { checkMemberLimit } from "@/lib/utils/subscription-limits";
 
 // Validation schema for inviting a member
 const inviteMemberSchema = z.object({
@@ -157,6 +163,20 @@ export async function POST(
       );
     }
 
+    // Check member limit before proceeding
+    const limitCheck = await checkMemberLimit(organizationId);
+
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: limitCheck.reason,
+          currentCount: limitCheck.currentCount,
+          limit: limitCheck.limit,
+        },
+        { status: 403 }
+      );
+    }
+
     // Check if user is already a member
     const existingMember = await prisma.organizationMember.findFirst({
       where: {
@@ -226,22 +246,56 @@ export async function POST(
       },
     });
 
-    // TODO: Send email with invitation link
-    // For now, we'll just log the invitation URL
-    const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invitations/${token}`;
-    console.log("Invitation URL:", invitationUrl);
-    console.log(
-      `Invite ${email} to join ${invitation.organization.name} as ${role.name}`
+    // Generate invitation URLs
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const invitationUrl = `${baseUrl}/invitations/${token}`;
+    const declineUrl = `${baseUrl}/invitations/${token}/decline`;
+
+    // Calculate days until expiration
+    const expiresInDays = Math.ceil(
+      (invitation.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     );
 
-    // In production, you would send an email here:
-    // await sendInvitationEmail({
-    //   to: email,
-    //   inviterName: invitation.inviter.name,
-    //   organizationName: invitation.organization.name,
-    //   roleName: role.name,
-    //   invitationUrl,
-    // });
+    // Determine locale (use inviter's locale if available, fallback to 'en')
+    // For MVP: we'll use 'en' as default since user locale isn't stored yet
+    // TODO: Get locale from user preferences when implemented
+    const locale = 'en'; // Can be enhanced to: session.user.locale || 'en'
+
+    // Send invitation email
+    let emailSent = false;
+    try {
+      const result = await sendEmail({
+        to: email,
+        subject: getInvitationEmailSubject(invitation.organization.name, locale),
+        react: OrganizationInvitationEmail({
+          inviteeName: email,
+          inviterName: invitation.inviter.name || invitation.inviter.email || 'A team member',
+          organizationName: invitation.organization.name,
+          roleName: role.name,
+          invitationUrl,
+          declineUrl,
+          expiresInDays,
+          locale,
+        }),
+      });
+
+      emailSent = result.success;
+
+      if (result.success) {
+        console.log(`✅ Invitation email sent to ${email}`);
+      } else {
+        console.error(`❌ Failed to send invitation email to ${email}:`, result.error);
+      }
+    } catch (error) {
+      console.error(`❌ Error sending invitation email to ${email}:`, error);
+      // Don't fail the request - invitation is still created
+    }
+
+    // Log URL for development/testing
+    if (process.env.NODE_ENV === 'development') {
+      console.log("📧 Invitation URL:", invitationUrl);
+      console.log(`Invite ${email} to join ${invitation.organization.name} as ${role.name}`);
+    }
 
     return NextResponse.json(
       {
@@ -251,6 +305,7 @@ export async function POST(
           role: role.name,
           expiresAt: invitation.expiresAt,
           invitationUrl, // Return URL for testing/development
+          emailSent, // Indicate whether email was successfully sent
         },
       },
       { status: 201 }

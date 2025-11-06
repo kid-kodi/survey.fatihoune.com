@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -53,9 +53,14 @@ export function CreateOrganizationModal({
   onSuccess,
 }: CreateOrganizationModalProps) {
   const t = useTranslations("Organization");
+  const tSub = useTranslations("Subscription");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [usage, setUsage] = useState<{
+    current: number;
+    limit: number | 'unlimited';
+  } | null>(null);
 
   const form = useForm<CreateOrganizationFormData>({
     resolver: zodResolver(createOrganizationSchema),
@@ -64,6 +69,15 @@ export function CreateOrganizationModal({
       description: "",
     },
   });
+
+  useEffect(() => {
+    if (open) {
+      fetch('/api/usage/organizations')
+        .then((res) => res.json())
+        .then((data) => setUsage(data))
+        .catch((err) => console.error('Failed to fetch organization usage:', err));
+    }
+  }, [open]);
 
   async function onSubmit(data: CreateOrganizationFormData) {
     setIsLoading(true);
@@ -123,6 +137,14 @@ export function CreateOrganizationModal({
           <DialogDescription>
             Create a new organization to collaborate with your team on surveys.
           </DialogDescription>
+          {usage && usage.limit !== 'unlimited' && (
+            <p className="text-sm text-gray-600 mt-2">
+              {tSub('organizations_used', {
+                current: usage.current,
+                limit: usage.limit,
+              })}
+            </p>
+          )}
         </DialogHeader>
 
         <Form {...form}>

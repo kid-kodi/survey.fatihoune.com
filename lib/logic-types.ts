@@ -1,4 +1,4 @@
-import { QuestionType } from "@prisma/client";
+export type QuestionType = "multiple_choice" | "text_input" | "rating_scale" | "checkbox" | "dropdown" | "yes_no";
 
 export type LogicCondition = "equals" | "not_equals" | "contains";
 

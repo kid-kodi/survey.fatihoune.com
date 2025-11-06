@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,25 +17,45 @@ import {
 import { ArrowLeft, FileText, Sparkles } from "lucide-react";
 import { SURVEY_TEMPLATES, SurveyTemplate } from "@/lib/templates";
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "next-intl";
+import { VisibilitySelector } from "@/components/surveys/VisibilitySelector";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type CreateMode = "choice" | "scratch" | "template";
+type Visibility = "private" | "organization";
 
 export default function NewSurveyPage() {
+  const t = useTranslations('NewSurvey');
+  const tOrg = useTranslations('Organization');
+  const tSub = useTranslations('Subscription');
   const router = useRouter();
+  const { currentOrganization, isPersonalWorkspace } = useOrganization();
   const [mode, setMode] = useState<CreateMode>("choice");
   const [selectedTemplate, setSelectedTemplate] = useState<SurveyTemplate | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    visibility: "organization" as Visibility,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [usage, setUsage] = useState<{
+    current: number;
+    limit: number | 'unlimited';
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/usage/surveys')
+      .then((res) => res.json())
+      .then((data) => setUsage(data))
+      .catch((err) => console.error('Failed to fetch survey usage:', err));
+  }, []);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.title.trim()) {
-      newErrors.title = "Survey title is required";
+      newErrors.title = `${t("title_required")}`;
     }
 
     setErrors(newErrors);
@@ -62,6 +82,8 @@ export default function NewSurveyPage() {
           title: formData.title,
           description: formData.description || null,
           templateId: selectedTemplate?.id || null,
+          visibility: formData.visibility,
+          organizationId: !isPersonalWorkspace && currentOrganization ? currentOrganization.id : null,
         }),
       });
 
@@ -69,7 +91,7 @@ export default function NewSurveyPage() {
 
       if (!response.ok) {
         setErrors({
-          general: data.error || "Failed to create survey",
+          general: data.error || `${t("failed_create")}`,
         });
       } else {
         // Redirect to survey builder
@@ -77,7 +99,7 @@ export default function NewSurveyPage() {
       }
     } catch (error) {
       setErrors({
-        general: "An unexpected error occurred. Please try again.",
+        general: `${t("unexpected_error")}`,
       });
     } finally {
       setIsLoading(false);
@@ -89,6 +111,7 @@ export default function NewSurveyPage() {
     setFormData({
       title: template.name,
       description: template.description,
+      visibility: "organization" as Visibility,
     });
     setMode("template");
   };
@@ -121,9 +144,9 @@ export default function NewSurveyPage() {
                 className="mr-4"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
+                {t("back_to_dashboard")}
               </Button>
-              <h1 className="text-xl font-bold text-gray-900">Create New Survey</h1>
+              <h1 className="text-xl font-bold text-gray-900">{t("create_new_survey")}</h1>
             </div>
           </div>
         </nav>
@@ -131,10 +154,10 @@ export default function NewSurveyPage() {
         <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              How would you like to start?
+              {t("how_start")}
             </h2>
             <p className="text-gray-600">
-              Choose a template for quick setup or start from scratch
+              {t("choose_template")}
             </p>
           </div>
 
@@ -147,24 +170,24 @@ export default function NewSurveyPage() {
                 <div className="mb-4 inline-flex rounded-lg bg-blue-100 p-3">
                   <FileText className="h-6 w-6 text-blue-600" />
                 </div>
-                <CardTitle>Start from Scratch</CardTitle>
+                <CardTitle>{t("start_from_scratch")}</CardTitle>
                 <CardDescription>
-                  Create a custom survey from the ground up with complete flexibility
+                  {t("scratch_description")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    <span>Complete control over every question</span>
+                    <span>{t("scratch_point1")}</span>
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    <span>Build exactly what you need</span>
+                    <span>{t("scratch_point2")}</span>
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    <span>No pre-filled content</span>
+                    <span>{t("scratch_point3")}</span>
                   </li>
                 </ul>
               </CardContent>
@@ -176,31 +199,31 @@ export default function NewSurveyPage() {
             >
               <div className="absolute top-4 right-4">
                 <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                  Recommended
+                  {t("recommended")}
                 </Badge>
               </div>
               <CardHeader>
                 <div className="mb-4 inline-flex rounded-lg bg-purple-100 p-3">
                   <Sparkles className="h-6 w-6 text-purple-600" />
                 </div>
-                <CardTitle>Use a Template</CardTitle>
+                <CardTitle>{t("use_template")}</CardTitle>
                 <CardDescription>
-                  Get started quickly with professionally designed survey templates
+                  {t("template_description")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    <span>Pre-built questions and structure</span>
+                    <span>{t("template_point1")}</span>
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    <span>Save time with proven formats</span>
+                    <span>{t("template_point2")}</span>
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    <span>Fully customizable after creation</span>
+                    <span>{t("template_point3")}</span>
                   </li>
                 </ul>
               </CardContent>
@@ -224,9 +247,9 @@ export default function NewSurveyPage() {
                 className="mr-4"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
+                {t("back")}
               </Button>
-              <h1 className="text-xl font-bold text-gray-900">Choose a Template</h1>
+              <h1 className="text-xl font-bold text-gray-900">{t("choose_template_title")}</h1>
             </div>
           </div>
         </nav>
@@ -234,10 +257,10 @@ export default function NewSurveyPage() {
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Survey Templates
+              {t("survey_templates")}
             </h2>
             <p className="text-gray-600">
-              Select a template to get started. You can customize it after creation.
+              {t("template_selection")}
             </p>
           </div>
 
@@ -260,7 +283,7 @@ export default function NewSurveyPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-gray-600">
-                    <span className="font-medium">{template.questions.length}</span> questions included
+                    <span className="font-medium">{template.questions.length}</span> {t("questions_included")}
                   </div>
                 </CardContent>
               </Card>
@@ -284,7 +307,7 @@ export default function NewSurveyPage() {
                 if (selectedTemplate) {
                   setSelectedTemplate(null);
                   setMode("template");
-                  setFormData({ title: "", description: "" });
+                  setFormData({ title: "", description: "", visibility: "organization" as Visibility });
                 } else {
                   setMode("choice");
                 }
@@ -292,7 +315,7 @@ export default function NewSurveyPage() {
               className="mr-4"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              {t("back")}
             </Button>
             <h1 className="text-xl font-bold text-gray-900">
               {selectedTemplate ? `Create from Template: ${selectedTemplate.name}` : "Create New Survey"}
@@ -305,12 +328,20 @@ export default function NewSurveyPage() {
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <Card>
           <CardHeader>
-            <CardTitle>Survey Details</CardTitle>
+            <CardTitle>{t("survey_details")}</CardTitle>
             <CardDescription>
               {selectedTemplate
-                ? "Customize your survey title and description. Questions will be pre-filled from the template."
-                : "Enter a title and optional description for your survey"}
+                ? `${t("template_customize")}`
+                : `${t("scratch_customize")}`}
             </CardDescription>
+            {usage && usage.limit !== 'unlimited' && (
+              <p className="text-sm text-gray-600 mt-2">
+                {tSub('surveys_used', {
+                  current: usage.current,
+                  limit: usage.limit,
+                })}
+              </p>
+            )}
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
@@ -325,9 +356,9 @@ export default function NewSurveyPage() {
                   <div className="flex items-start">
                     <Sparkles className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
                     <div>
-                      <strong>Template selected:</strong> {selectedTemplate.name}
+                      <strong>{t("template_selected")}</strong> {selectedTemplate.name}
                       <br />
-                      {selectedTemplate.questions.length} questions will be added to your survey
+                      {selectedTemplate.questions.length} {t("questions_will_be_added")}
                     </div>
                   </div>
                 </div>
@@ -335,13 +366,13 @@ export default function NewSurveyPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="title">
-                  Survey Title <span className="text-red-500">*</span>
+                  {t("survey_title")} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="title"
                   name="title"
                   type="text"
-                  placeholder="e.g., Customer Satisfaction Survey"
+                  placeholder={`${t("title_placeholder")}`}
                   value={formData.title}
                   onChange={handleChange}
                   className={errors.title ? "border-red-500" : ""}
@@ -354,18 +385,33 @@ export default function NewSurveyPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
+                <Label htmlFor="description">{t("description")}</Label>
                 <Textarea
                   id="description"
                   name="description"
-                  placeholder="Briefly describe what this survey is about..."
+                  placeholder={`${t("description_placeholder")}`}
                   value={formData.description}
                   onChange={handleChange}
                   disabled={isLoading}
                   rows={4}
                 />
                 <p className="text-sm text-gray-500">
-                  This will be shown to respondents at the top of your survey
+                  {t("description_helper")}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="visibility">{tOrg("visibility")}</Label>
+                <VisibilitySelector
+                  value={formData.visibility}
+                  onChange={(value) => setFormData({ ...formData, visibility: value })}
+                  disabled={isLoading}
+                  isOrganizationContext={!isPersonalWorkspace && !!currentOrganization}
+                />
+                <p className="text-sm text-gray-500">
+                  {formData.visibility === "private"
+                    ? "Only you can see and manage this survey"
+                    : "All organization members can see this survey based on their permissions"}
                 </p>
               </div>
             </CardContent>
@@ -377,17 +423,17 @@ export default function NewSurveyPage() {
                   if (selectedTemplate) {
                     setSelectedTemplate(null);
                     setMode("template");
-                    setFormData({ title: "", description: "" });
+                    setFormData({ title: "", description: "", visibility: "organization" as Visibility });
                   } else {
                     setMode("choice");
                   }
                 }}
                 disabled={isLoading}
               >
-                Back
+                {t("back")}
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create Survey"}
+                {isLoading ? `${t("creating")}` : `${t("create_survey")}`}
               </Button>
             </CardFooter>
           </form>

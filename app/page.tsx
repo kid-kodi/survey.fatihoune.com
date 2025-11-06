@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
+import { HeroSection } from "@/components/marketing/hero-section";
+import { FeaturesSection } from "@/components/marketing/features-section";
+import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
+import { TestimonialsSection } from "@/components/marketing/testimonials-section";
+import { useTranslations } from "next-intl";
 
 export default function Home() {
+  const t = useTranslations('HomePage');
   return (
     <div className="flex min-h-screen flex-col">
       {/* Navigation */}
-      <nav className="border-b bg-white">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-white/80 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
@@ -14,10 +20,10 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4">
               <Link href="/login">
-                <Button variant="outline">Sign In</Button>
+                <Button variant="outline">{t('sign_in')}</Button>
               </Link>
               <Link href="/register">
-                <Button>Get Started</Button>
+                <Button>{t('get_started')}</Button>
               </Link>
             </div>
           </div>
@@ -25,26 +31,17 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <main className="flex flex-1 items-center justify-center bg-gray-50">
-        <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            Create Professional Surveys in Minutes
-          </h2>
-          <p className="mt-6 text-lg leading-8 text-gray-600">
-            Build, distribute, and analyze surveys with our modern, easy-to-use platform.
-            Get started in less than 10 minutes without any technical expertise.
-          </p>
-          <div className="mt-10 flex items-center justify-center gap-4">
-            <Link href="/register">
-              <Button size="lg">Create Your First Survey</Button>
-            </Link>
-            <Link href="/login">
-              <Button variant="outline" size="lg">
-                Sign In
-              </Button>
-            </Link>
-          </div>
-        </div>
+      <main className="pt-16">
+        <HeroSection />
+
+        {/* Features Section */}
+        <FeaturesSection />
+
+        {/* How It Works Section */}
+        <HowItWorksSection />
+
+        {/* Testimonials Section */}
+        <TestimonialsSection />
       </main>
     </div>
   );

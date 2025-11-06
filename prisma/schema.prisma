@@ -9,22 +9,27 @@ datasource db {
 }
 
 model Survey {
-  id          String       @id @default(cuid())
-  userId      String
-  uniqueId    String       @unique @default(cuid())
-  title       String
-  description String?
-  status      SurveyStatus @default(draft)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  publishedAt DateTime?
-  questions   Question[]
-  responses   Response[]
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String             @id @default(cuid())
+  userId         String
+  uniqueId       String             @unique @default(cuid())
+  title          String
+  description    String?
+  status         SurveyStatus       @default(draft)
+  organizationId String?
+  visibility     SurveyVisibility   @default(organization)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  publishedAt    DateTime?
+  questions      Question[]
+  responses      Response[]
+  invitations    SurveyInvitation[]
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([uniqueId])
   @@index([status])
+  @@index([organizationId])
 }
 
 model Question {
@@ -44,16 +49,38 @@ model Question {
 }
 
 model Response {
-  id          String   @id @default(cuid())
-  surveyId    String
-  answers     Json
-  submittedAt DateTime @default(now())
-  ipAddress   String?
-  userAgent   String?
-  survey      Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  surveyId        String
+  answers         Json
+  submittedAt     DateTime @default(now())
+  ipAddress       String?
+  userAgent       String?
+  invitationToken String?
+  survey          Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
 
   @@index([surveyId])
   @@index([surveyId, submittedAt])
+  @@index([invitationToken])
+}
+
+model SurveyInvitation {
+  id          String                 @id @default(cuid())
+  surveyId    String
+  email       String
+  token       String                 @unique
+  status      SurveyInvitationStatus @default(pending)
+  sentAt      DateTime?
+  completedAt DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  survey      Survey                 @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@unique([surveyId, email])
+  @@index([surveyId])
+  @@index([email])
+  @@index([token])
+  @@index([status])
+  @@index([surveyId, status])
 }
 
 enum SurveyStatus {
@@ -71,6 +98,103 @@ enum QuestionType {
   yes_no
 }
 
+enum SurveyVisibility {
+  private
+  organization
+}
+
+enum SurveyInvitationStatus {
+  pending
+  sent
+  failed
+  completed
+}
+
+model Organization {
+  id          String                   @id @default(cuid())
+  name        String
+  slug        String                   @unique
+  description String?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  members     OrganizationMember[]
+  surveys     Survey[]
+  roles       Role[]
+  invitations OrganizationInvitation[]
+
+  @@index([slug])
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  roleId         String
+  joinedAt       DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([roleId])
+}
+
+model Role {
+  id             String               @id @default(cuid())
+  organizationId String?
+  name           String
+  description    String?
+  isSystemRole   Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  organization   Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        OrganizationMember[]
+  permissions    RolePermission[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  category    String
+  roles       RolePermission[]
+
+  @@index([category])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model OrganizationInvitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  inviterId      String
+  inviteeEmail   String
+  roleId         String
+  token          String       @unique
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter        User         @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([inviterId])
+  @@index([inviteeEmail])
+  @@index([token])
+}
+
 model Verification {
   id         String   @id
   identifier String
@@ -83,18 +207,33 @@ model Verification {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  surveys       Survey[]
+  id                      String                   @id
+  name                    String
+  email                   String
+  emailVerified           Boolean                  @default(false)
+  image                   String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @default(now()) @updatedAt
+  currentPlanId           String?
+  preferredCurrency       Currency?                @default(USD)
+  preferredPaymentProvider PaymentProvider?        @default(stripe)
+  stripeCustomerId        String?                  @unique
+  waveCustomerId          String?                  @unique
+  orangeCustomerId        String?                  @unique
+  hasUsedTrial            Boolean                  @default(false)
+  sessions                Session[]
+  accounts                Account[]
+  surveys                 Survey[]
+  organizationMembers     OrganizationMember[]
+  sentInvitations         OrganizationInvitation[] @relation("InvitationInviter")
+  currentPlan             SubscriptionPlan?        @relation(fields: [currentPlanId], references: [id], onDelete: SetNull)
+  subscriptions           Subscription[]
+  payments                Payment[]
+  usageTracking           UsageTracking[]
 
   @@unique([email])
+  @@index([currentPlanId])
+  @@index([stripeCustomerId])
   @@map("user")
 }
 
@@ -130,4 +269,167 @@ model Account {
   updatedAt             DateTime  @updatedAt
 
   @@map("account")
+}
+
+// ============================================
+// SUBSCRIPTION & BILLING MODELS
+// ============================================
+
+model SubscriptionPlan {
+  id              String         @id @default(cuid())
+  name            String         // Free, Pro, Premium, Custom
+  description     String?
+  price           Int            // Price in cents (USD) or smallest currency unit (FCFA)
+  currency        Currency       @default(USD)
+  interval        BillingInterval @default(month)
+  stripeProductId String?
+  stripePriceId   String?
+  waveProductId   String?
+  orangeProductId String?
+  features        Json           // JSON array of feature strings
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  limits          PlanLimit[]
+  subscriptions   Subscription[]
+  users           User[]
+
+  @@unique([name, currency])
+  @@index([isActive])
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String
+  planId                String
+  status                SubscriptionStatus @default(active)
+  paymentProvider       PaymentProvider
+  providerSubscriptionId String?           @unique
+  providerCustomerId    String?
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean            @default(false)
+  graceEndsAt           DateTime?         // For migration grace period
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                  SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments              Payment[]
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@index([paymentProvider])
+  @@index([providerSubscriptionId])
+  @@index([providerCustomerId])
+}
+
+model Payment {
+  id                 String          @id @default(cuid())
+  subscriptionId     String?
+  userId             String
+  amount             Int             // Amount in cents or smallest currency unit
+  currency           Currency
+  provider           PaymentProvider
+  providerPaymentId  String?         @unique
+  status             PaymentStatus   @default(pending)
+  paidAt             DateTime?
+  createdAt          DateTime        @default(now())
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription       Subscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([provider])
+  @@index([status])
+  @@index([providerPaymentId])
+}
+
+model PlanLimit {
+  id         String           @id @default(cuid())
+  planId     String
+  limitType  LimitType
+  limitValue String           // 'unlimited' or numeric string
+  createdAt  DateTime         @default(now())
+  plan       SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, limitType])
+  @@index([planId])
+}
+
+model ExchangeRate {
+  id           String   @id @default(cuid())
+  fromCurrency Currency
+  toCurrency   Currency
+  rate         Float    // Conversion rate (e.g., 1 USD = 620 XOF, so rate = 620)
+  effectiveAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([fromCurrency, toCurrency, effectiveAt])
+  @@index([fromCurrency, toCurrency])
+  @@index([effectiveAt])
+}
+
+model UsageTracking {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String?
+  resourceType   ResourceType
+  currentCount   Int          @default(0)
+  lastUpdated    DateTime     @default(now()) @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId, resourceType])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([resourceType])
+}
+
+// ============================================
+// ENUMS FOR SUBSCRIPTION & BILLING
+// ============================================
+
+enum Currency {
+  USD
+  EUR
+  XOF
+}
+
+enum PaymentProvider {
+  stripe
+  wave
+  orange_money
+}
+
+enum BillingInterval {
+  month
+  year
+}
+
+enum SubscriptionStatus {
+  active
+  cancelled
+  past_due
+  trialing
+  incomplete
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+enum LimitType {
+  surveys
+  organizations
+  users
+}
+
+enum ResourceType {
+  survey
+  organization
+  user
 }

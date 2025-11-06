@@ -1291,30 +1291,139 @@ model User {
 
   // Relations
   surveys       Survey[]
+  organizationMembers OrganizationMember[]
+  sentInvitations     OrganizationInvitation[] @relation("InvitationInviter")
+  receivedInvitations OrganizationInvitation[] @relation("InvitationInvitee")
 
   @@index([email])
   @@index([googleId])
 }
 
-model Survey {
-  id          String        @id @default(cuid())
-  userId      String
-  uniqueId    String        @unique @default(cuid()) // 8-char short ID for public URLs
-  title       String
-  description String?       @db.Text
-  status      SurveyStatus  @default(draft)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  publishedAt DateTime?
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questions   Question[]
-  responses   Response[]
+  members     OrganizationMember[]
+  surveys     Survey[]
+  roles       Role[]
+  invitations OrganizationInvitation[]
+
+  @@index([slug])
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  roleId         String
+  joinedAt       DateTime     @default(now())
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([roleId])
+}
+
+model Role {
+  id             String       @id @default(cuid())
+  organizationId String?      // Null for system roles
+  name           String
+  description    String?      @db.Text
+  isSystemRole   Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  // Relations
+  organization   Organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        OrganizationMember[]
+  permissions    RolePermission[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  category    String   // e.g., "organization", "surveys", "analytics", "data"
+
+  // Relations
+  roles       RolePermission[]
+
+  @@index([category])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  // Relations
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model OrganizationInvitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  inviterId      String
+  inviteeEmail   String
+  roleId         String
+  token          String       @unique
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviter        User         @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([inviterId])
+  @@index([inviteeEmail])
+  @@index([token])
+}
+
+model Survey {
+  id             String        @id @default(cuid())
+  userId         String
+  uniqueId       String        @unique @default(cuid()) // 8-char short ID for public URLs
+  title          String
+  description    String?       @db.Text
+  status         SurveyStatus  @default(draft)
+  organizationId String?       // Nullable - supports both personal and org surveys
+  visibility     SurveyVisibility @default(organization)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  publishedAt    DateTime?
+
+  // Relations
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  questions      Question[]
+  responses      Response[]
 
   @@index([userId])
   @@index([uniqueId])
   @@index([status])
+  @@index([organizationId])
+}
+
+enum SurveyVisibility {
+  private
+  organization
 }
 
 enum SurveyStatus {
@@ -1573,8 +1682,12 @@ App Router Structure:
 /(dashboard)/surveys/[id]/edit → Survey builder (protected, CSR)
 /(dashboard)/surveys/[id]   → Survey analytics (protected, CSR)
 /(dashboard)/settings       → Account settings (protected, CSR)
+/(dashboard)/organizations/[id]/settings → Organization management (protected, CSR)
+/invitations/[token]        → Invitation accept/decline page (public, SSR)
 /s/[uniqueId]               → Public survey view (public, SSR)
 /api/auth/[...route]        → Auth API routes
+/api/organizations/*        → Organization API routes
+/api/invitations/*          → Invitation API routes
 /api/surveys/*              → Survey API routes
 /api/user/*                 → User API routes
 ```
@@ -1767,6 +1880,30 @@ export const surveyService = {
     /callback
       /google
         route.ts            # GET - Google OAuth callback
+  /organizations
+    route.ts                # GET - List user's organizations, POST - Create organization
+    /[id]
+      route.ts              # GET - Get organization, PATCH - Update, DELETE - Delete
+      /members
+        route.ts            # GET - List members, POST - Invite member
+        /[memberId]
+          route.ts          # PATCH - Update member role, DELETE - Remove member
+      /roles
+        route.ts            # GET - List roles, POST - Create custom role
+        /[roleId]
+          route.ts          # GET - Get role, PATCH - Update role, DELETE - Delete role
+      /invitations
+        route.ts            # POST - Send invitation, GET - List pending invitations
+        /[invitationId]
+          route.ts          # DELETE - Cancel invitation
+      /leave
+        route.ts            # POST - Leave organization
+  /invitations
+    /[token]
+      /accept
+        route.ts            # POST - Accept invitation
+      /decline
+        route.ts            # POST - Decline invitation
   /surveys
     route.ts                # GET - List surveys, POST - Create survey
     /[id]

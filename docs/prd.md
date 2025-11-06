@@ -23,6 +23,7 @@ This PRD defines the MVP for a modern survey platform that balances simplicity w
 | Date | Version | Description | Author |
 |------|---------|-------------|--------|
 | 2025-11-01 | 1.0 | Initial PRD creation | John (PM Agent) |
+| 2025-11-05 | 2.0 | Added Epic 6 (Subscription & Billing) and Epic 7 (Marketing Website); Added FR39-FR52 for subscription features | Sarah (PO Agent) |
 
 ---
 
@@ -56,6 +57,40 @@ This PRD defines the MVP for a modern survey platform that balances simplicity w
 - **FR24**: Survey respondents receive confirmation message upon successful submission
 - **FR25**: Users can mark questions as required or optional
 - **FR26**: The system validates that required questions are answered before allowing submission
+- **FR27**: Users can create organizations with a name and optional description
+- **FR28**: Users can invite other users to join their organization via email
+- **FR29**: Users can accept or decline organization invitations
+- **FR30**: Organization owners can manage organization members (view, remove, change roles)
+- **FR31**: Organization owners can create custom roles with specific permissions
+- **FR32**: Organization owners can assign roles to members
+- **FR33**: Users can view all organizations they belong to and switch between them
+- **FR34**: Survey creators can set survey visibility: private (only me) or organization (all members)
+- **FR35**: Organization members can view organization surveys based on visibility settings
+- **FR36**: Permission system controls access to: manage_organization, manage_users, manage_roles, create_surveys, manage_all_surveys, manage_own_surveys, view_analytics, export_data
+- **FR37**: Role inheritance ensures users automatically receive permissions from their assigned roles
+- **FR38**: Default roles (Owner, Admin, Agent) are automatically created for new organizations
+- **FR39**: Users can subscribe to paid plans (Pro, Premium) via Stripe checkout
+- **FR40**: System enforces survey creation limits based on subscription plan (Free: 5, Pro: 50, Premium: unlimited)
+- **FR41**: System enforces organization creation limits based on subscription plan (Free: 0, Pro: 1, Premium: unlimited)
+- **FR42**: System enforces organization member limits based on subscription plan (Pro: 5, Premium: unlimited)
+- **FR43**: Users can upgrade their subscription plan through self-service checkout
+- **FR44**: Users can downgrade their subscription plan through Stripe Customer Portal
+- **FR45**: Users can view their subscription status, billing history, and payment method in billing dashboard
+- **FR46**: Users can cancel their subscription with cancellation taking effect at period end
+- **FR47**: New users can start a 14-day free trial of Pro plan without payment information
+- **FR48**: Visitors can view marketing landing page with features, benefits, and pricing overview
+- **FR49**: Visitors can view detailed features page showcasing all platform capabilities
+- **FR50**: Visitors can contact the team via contact form for enterprise/custom plans
+- **FR51**: Platform displays usage indicators showing current usage vs. plan limits (surveys, organizations, members)
+- **FR52**: System sends email notifications for subscription events (trial expiring, payment failed, subscription confirmed)
+- **FR53**: Users can select payment provider (Stripe, Wave, or Orange Money) when subscribing
+- **FR54**: System supports multiple currencies (USD, EUR, XOF/CFA Franc) with proper formatting
+- **FR55**: Pricing automatically adapts to user's location and displays appropriate currency
+- **FR56**: Wave mobile money integration enables subscriptions for West African users
+- **FR57**: Orange Money integration enables subscriptions across 17+ African countries
+- **FR58**: Payment webhooks handle events from Stripe, Wave, and Orange Money
+- **FR59**: Users can view billing history with original payment currency and provider
+- **FR60**: Currency conversion rates displayed on pricing page for transparency
 
 ### Non Functional
 
@@ -229,6 +264,15 @@ The application will be built as a unified Next.js application leveraging both s
 
 ### Epic 4: Analytics & Data Export
 **Goal**: Provide users with response viewing, basic analytics visualizations, and CSV export capabilities for data analysis.
+
+### Epic 5: RBAC & Organization Management
+**Goal**: Enable multi-tenant organization management with role-based access control, allowing teams to collaborate on surveys with granular permissions.
+
+### Epic 6: Subscription & Billing Management
+**Goal**: Transform the survey platform into a fully monetized SaaS offering with tiered subscription plans (Free, Pro, Premium, Custom), integrated Stripe payment processing, usage limit enforcement, and self-service billing management.
+
+### Epic 7: Marketing Website & Landing Pages
+**Goal**: Create a comprehensive public-facing marketing website with landing page, pricing page, features showcase, about page, contact form, blog, and SEO optimization to drive user acquisition and conversions.
 
 ---
 
@@ -836,6 +880,307 @@ so that I can monitor multiple surveys at once.
 
 ---
 
+## Epic 5: RBAC & Organization Management
+
+**Epic Goal**: Transform the survey platform from single-user ownership to multi-tenant organization-based management with role-based access control (RBAC). This epic enables users to create and manage organizations, invite team members with specific roles (Owner, Admin, Agent, etc.), define custom roles with granular permissions, and control survey visibility at organization and individual levels. By the end of this epic, the platform supports collaborative survey management with proper access control and delegation.
+
+### Story 5.1: Database Schema - Organizations, Roles, Permissions
+
+As a developer,
+I want to extend the database schema with organization, role, and permission models,
+so that the platform can support multi-tenancy and RBAC.
+
+#### Acceptance Criteria
+
+1. Organization model created with fields: id, name, description, slug (unique), createdAt, updatedAt
+2. OrganizationMember model created with fields: id, organizationId, userId, roleId, joinedAt
+3. Role model created with fields: id, organizationId (nullable for system roles), name, description, isSystemRole, createdAt
+4. Permission model created with fields: id, name, description, category
+5. RolePermission junction table with fields: roleId, permissionId
+6. Survey model extended with fields: organizationId (nullable), visibility (enum: private, organization)
+7. System permissions seeded: manage_organization, manage_users, manage_roles, create_surveys, manage_all_surveys, manage_own_surveys, view_all_analytics, view_own_analytics, export_data
+8. System roles seeded: Owner (all permissions), Admin (all except manage_organization), Agent (create_surveys, manage_own_surveys, view_own_analytics)
+9. Database migrations created and tested
+10. Prisma schema updated and client regenerated
+11. Indexes created on: organizationId, userId, roleId, slug
+12. Migration includes rollback script for safe reversion
+
+### Story 5.2: Create Organization & Default Setup
+
+As a user,
+I want to create an organization and automatically become its owner,
+so that I can invite team members to collaborate.
+
+#### Acceptance Criteria
+
+1. "Create Organization" button added to dashboard with i18n key `Organization.create_organization`
+2. Create organization form with fields: Organization Name (required, i18n: `Organization.name`), Description (optional, i18n: `Organization.description`)
+3. API endpoint created (POST /api/organizations) with validation
+4. Organization slug auto-generated from name (lowercase, hyphenated)
+5. Slug uniqueness validated (append numbers if conflict)
+6. Creating organization automatically creates OrganizationMember record with Owner role
+7. Default roles (Owner, Admin, Agent) automatically created for organization with i18n names
+8. User redirected to organization dashboard after creation
+9. Success notification shown (i18n: `Organization.created_successfully`)
+10. Error handling for duplicate names and failed creation (i18n: `Organization.create_failed`)
+11. All UI labels and messages fully translated (en.json, fr.json)
+
+### Story 5.3: Organization Switching & Context
+
+As a user,
+I want to view and switch between organizations I belong to,
+so that I can manage surveys in different contexts.
+
+#### Acceptance Criteria
+
+1. User navigation includes organization selector dropdown (i18n: `Organization.switch_organization`)
+2. Dropdown shows all organizations user belongs to
+3. Current organization highlighted in dropdown
+4. Clicking organization switches context (updates all views)
+5. Organization context stored in session/state
+6. Dashboard filters surveys by current organization
+7. API requests include organization context (header or param)
+8. "Personal" workspace available for user's private surveys (i18n: `Organization.personal_workspace`)
+9. Organization switch persists across page refreshes
+10. Empty state shown if user belongs to no organizations (i18n: `Organization.no_organizations`)
+11. All dropdown options and labels translated
+
+### Story 5.4: Invite Users to Organization
+
+As an organization owner or admin,
+I want to invite users to join my organization with a specific role,
+so that they can collaborate on surveys.
+
+#### Acceptance Criteria
+
+1. Organization settings page includes "Members" tab (i18n: `Organization.members_tab`)
+2. "Invite Member" button opens invitation modal (i18n: `Organization.invite_member`)
+3. Invitation form with fields: Email (required, i18n: `Organization.email`), Role (dropdown, i18n: `Organization.role`)
+4. Role dropdown populated with organization's roles (translated role names)
+5. API endpoint created (POST /api/organizations/[id]/invitations)
+6. Invitation creates pending OrganizationInvitation record
+7. Invitation email sent to invitee with accept/decline links (both EN/FR templates)
+8. Email includes organization name, inviter name, and role (localized email content)
+9. Invitation expires after 7 days
+10. Only users with manage_users permission can invite
+11. Success notification shown after sending invitation (i18n: `Organization.invitation_sent`)
+12. Invited users appear in "Pending Invitations" section (i18n: `Organization.pending_invitations`)
+
+### Story 5.5: Accept/Decline Organization Invitations
+
+As a user,
+I want to accept or decline organization invitations,
+so that I can join teams I want to collaborate with.
+
+#### Acceptance Criteria
+
+1. Invitation email includes "Accept" and "Decline" buttons with unique tokens (localized email)
+2. Clicking "Accept" redirects to /invitations/[token] page
+3. Invitation page shows organization name, inviter, role, and invitation date (i18n: `Organization.invitation_details`)
+4. "Join Organization" button accepts invitation (i18n: `Organization.join_organization`)
+5. Accepting invitation creates OrganizationMember record with specified role
+6. Accepting invitation deletes invitation record
+7. User redirected to organization dashboard after accepting
+8. "Decline" button rejects invitation (i18n: `Organization.decline_invitation`)
+9. Expired invitations show error message (i18n: `Organization.invitation_expired`)
+10. Already-accepted invitations redirect to organization (i18n: `Organization.already_member`)
+11. Notification shown in app for pending invitations (bell icon with i18n badge)
+12. All status messages and labels fully translated
+
+### Story 5.6: Manage Organization Members
+
+As an organization owner or admin,
+I want to view and manage organization members,
+so that I can control who has access and what they can do.
+
+#### Acceptance Criteria
+
+1. Organization settings "Members" tab displays list of all members
+2. Member list shows: name, email, role, joined date (i18n: `Organization.joined_date`), actions
+3. Owner can change member roles via dropdown (i18n: `Organization.change_role`)
+4. Role change API endpoint (PATCH /api/organizations/[id]/members/[memberId])
+5. Owner can remove members via "Remove" button (i18n: `Organization.remove_member`)
+6. Remove member shows confirmation dialog (i18n: `Organization.remove_member_confirm`)
+7. Removing member deletes OrganizationMember record
+8. Removing member revokes access to organization surveys
+9. Members with manage_users permission can manage other members
+10. Members cannot remove themselves (must leave organization) - error message (i18n: `Organization.cannot_remove_self`)
+11. Organization must have at least one Owner (prevent removing last owner) - error (i18n: `Organization.must_have_owner`)
+12. Real-time updates when member roles change
+13. All table headers, labels, and messages translated
+
+### Story 5.7: Create Custom Roles
+
+As an organization owner,
+I want to create custom roles with specific permissions,
+so that I can tailor access control to my team's needs.
+
+#### Acceptance Criteria
+
+1. Organization settings includes "Roles" tab (i18n: `Organization.roles_tab`)
+2. Roles tab displays all roles (system + custom)
+3. System roles (Owner, Admin, Agent) shown with lock icon and label (i18n: `Organization.system_role`)
+4. "Create Role" button opens role creation modal (i18n: `Organization.create_role`)
+5. Role form with fields: Role Name (required, i18n: `Organization.role_name`), Description (optional), Permissions (checkboxes)
+6. Permission checkboxes organized by category with translated labels: Organization (i18n: `Organization.category_organization`), Surveys (i18n: `Organization.category_surveys`), Analytics, Data
+7. Each permission has translated name and description
+8. API endpoint created (POST /api/organizations/[id]/roles)
+9. Custom role created with isSystemRole=false
+10. Custom role appears in role dropdown for invitations and member management
+11. Role can be edited via "Edit" button (i18n: `Organization.edit_role`)
+12. Role can be deleted if not assigned to any members (i18n: `Organization.delete_role`, confirmation: `Organization.delete_role_confirm`)
+13. Deleting role shows warning if members have it (i18n: `Organization.role_in_use`)
+14. All form labels, categories, and messages fully translated
+
+### Story 5.8: Survey Visibility Settings
+
+As a survey creator,
+I want to set survey visibility to private or organization-wide,
+so that I can control who can view and manage my surveys.
+
+#### Acceptance Criteria
+
+1. Survey creation/edit form includes "Visibility" field (i18n: `Organization.visibility`)
+2. Visibility options: "Private (Only Me)" (i18n: `Organization.visibility_private`) and "Organization (All Members)" (i18n: `Organization.visibility_organization`)
+3. Default visibility is "Organization" for organization surveys
+4. Visibility setting saved to Survey.visibility field
+5. Private surveys only visible to creator
+6. Organization surveys visible to all organization members
+7. Organization surveys respect additional permission checks (manage_all_surveys vs manage_own_surveys)
+8. Survey list filters surveys based on current organization and visibility
+9. Public survey link (/s/[uniqueId]) respects visibility (archived organization surveys show "No longer accepting responses")
+10. Visibility can be changed after survey creation
+11. Visibility change confirmation dialog (i18n: `Organization.change_visibility_confirm`)
+12. All visibility options and help text translated
+
+### Story 5.9: Organization Survey Access Control
+
+As a user,
+I want to see only surveys I have permission to access in my current organization,
+so that I don't see irrelevant or unauthorized content.
+
+#### Acceptance Criteria
+
+1. Survey list API filters by current organization context
+2. Users with manage_all_surveys permission see all organization surveys
+3. Users with manage_own_surveys permission see only their own surveys
+4. Private surveys only returned for survey creator
+5. Survey detail API checks permissions before returning data
+6. Unauthorized access returns 403 Forbidden error (i18n: `Organization.access_denied`)
+7. Survey builder only accessible if user has permission to manage survey (error: i18n: `Organization.no_permission_edit`)
+8. Analytics only accessible if user has view_all_analytics or (view_own_analytics + survey creator) (error: i18n: `Organization.no_permission_analytics`)
+9. Export only accessible if user has export_data permission (error: i18n: `Organization.no_permission_export`)
+10. Permission checks performed on every API request
+11. All error messages and access denial notices translated
+
+### Story 5.10: Permission Middleware & Authorization
+
+As a developer,
+I want a reusable permission checking middleware,
+so that I can easily enforce authorization across all API routes.
+
+#### Acceptance Criteria
+
+1. Permission middleware created: `requirePermission(permission: string)`
+2. Middleware checks current user's role in current organization
+3. Middleware queries RolePermission to verify user has required permission
+4. Middleware returns 403 if permission not granted (i18n error response)
+5. Middleware returns 401 if user not authenticated (i18n error response)
+6. Middleware handles edge cases: no organization context, no role assigned
+7. Helper function created: `hasPermission(userId, organizationId, permission)`
+8. Helper function can check multiple permissions (AND/OR logic)
+9. All protected API routes wrapped with permission middleware
+10. Permission checks integrate with existing auth middleware
+11. Frontend guards added to hide UI elements based on permissions
+12. Error responses include localized messages based on Accept-Language header
+
+### Story 5.11: Organization Dashboard & Management UI
+
+As an organization owner or admin,
+I want a centralized organization management interface,
+so that I can configure my organization settings, members, and roles.
+
+#### Acceptance Criteria
+
+1. Organization settings page created at /organizations/[id]/settings
+2. Settings page has tabs: General (i18n: `Organization.general_tab`), Members (i18n: `Organization.members_tab`), Roles (i18n: `Organization.roles_tab`), Permissions (if owner, i18n: `Organization.permissions_tab`)
+3. General tab displays organization name, description, slug
+4. General tab allows editing name and description (requires manage_organization) - labels all translated
+5. Members tab displays member list with search (i18n: `Organization.search_members`) and filter
+6. Roles tab displays all roles with permission breakdown (all permissions translated)
+7. Permissions tab (owner only) displays all available permissions with descriptions (all translated)
+8. Breadcrumb navigation shows current organization (i18n: `Organization.breadcrumb`)
+9. Settings accessible via navigation menu when in organization context
+10. Mobile-responsive layout for all settings pages
+11. All tab labels, form fields, buttons, and help text fully translated (en.json, fr.json)
+
+### Story 5.12: Leave Organization
+
+As an organization member,
+I want to leave an organization I no longer wish to be part of,
+so that I can clean up my organization list.
+
+#### Acceptance Criteria
+
+1. User profile includes "My Organizations" section (i18n: `Organization.my_organizations`)
+2. Each organization card has "Leave Organization" button (i18n: `Organization.leave_organization`)
+3. Clicking "Leave" shows confirmation dialog with warning (i18n: `Organization.leave_confirm`)
+4. Confirmation explains consequences: lose access to organization surveys, analytics (i18n: `Organization.leave_consequences`)
+5. API endpoint created (POST /api/organizations/[id]/leave)
+6. Leaving deletes OrganizationMember record
+7. User redirected to personal workspace after leaving
+8. Owner cannot leave if they're the last owner (must transfer ownership or delete org) - error (i18n: `Organization.owner_cannot_leave`)
+9. Leaving organization shown in organization activity log (future story)
+10. Success notification shown after leaving (i18n: `Organization.left_successfully`)
+11. All dialog messages, warnings, and confirmations fully translated
+
+---
+
+## Epic 6: Subscription & Billing Management
+
+**Epic Goal**: Transform the survey platform into a fully monetized SaaS offering with tiered subscription plans, integrated **multi-payment provider support** (Stripe, Wave, Orange Money), **multi-currency pricing** (USD, EUR, XOF), usage limit enforcement, and self-service billing management. This epic enables users to subscribe to Free, Pro, or Premium plans with automatic enforcement of survey limits, organization restrictions, and user caps. By the end of this epic, the platform supports revenue generation through subscriptions with flexible payment options for global (Stripe) and African markets (Wave, Orange Money), providing a seamless upgrade/downgrade experience.
+
+**Subscription Tiers**:
+- **Free**: Up to 5 surveys per account, no organizations
+- **Pro**: 1 organization, 5 users max, 10 surveys per user (50 total max)
+  - USD: $29/month (Stripe)
+  - XOF: 15,000 FCFA/month (Wave, Orange Money)
+- **Premium**: Unlimited organizations, users, and surveys
+  - USD: $99/month (Stripe)
+  - XOF: 50,000 FCFA/month (Wave, Orange Money)
+- **Custom**: Enterprise tier requiring contact (no self-service), custom pricing
+
+**Payment Providers**:
+- **Stripe**: Global credit/debit cards, Apple Pay, Google Pay (USD, EUR)
+- **Wave**: Mobile money for Senegal, Côte d'Ivoire, Mali, Burkina Faso (XOF)
+- **Orange Money**: Mobile money across 17+ African countries (XOF)
+
+For detailed user stories and acceptance criteria, see: `docs/prd/epic-6-subscription-billing.md`
+
+**Epic 6 Stories**: 16 stories covering database schema (multi-payment provider support), Stripe integration, Wave integration, Orange Money integration, webhooks (all 3 providers), usage limit enforcement (surveys/organizations/members), pricing page, payment provider selection UI, multi-currency pricing display, upgrade/downgrade flows, billing dashboard, subscription indicators, Custom plan contact form, grandfathering strategy, and Pro trial period.
+
+---
+
+## Epic 7: Marketing Website & Landing Pages
+
+**Epic Goal**: Create a comprehensive public-facing marketing website with landing page, pricing page, features showcase, services overview, about page, contact form, and SEO optimization. This epic transforms the platform from an application-only product into a complete SaaS offering with professional marketing presence. By the end of this epic, the platform will have a polished marketing website that drives user acquisition, communicates value propositions, and converts visitors into registered users.
+
+**Marketing Website Components**:
+- Landing page at root `/` with hero, features, benefits, testimonials, CTA
+- Features/Services page at `/features`
+- About page at `/about`
+- Contact page at `/contact`
+- Blog foundation at `/blog`
+- Legal pages (Privacy Policy, Terms, Cookies)
+- SEO optimization, analytics integration
+- Multi-language support (EN/FR)
+
+For detailed user stories and acceptance criteria, see: `docs/prd/epic-7-marketing-website.md`
+
+**Epic 7 Stories**: 18 stories covering landing page sections (hero, features, how it works, testimonials, pricing teaser, final CTA), features page, about page, contact form, blog foundation, footer/navigation, SEO optimization, analytics integration, performance optimization, legal pages, multi-language support, email templates, and error pages.
+
+---
+
 ## Checklist Results Report
 
 ### PM Checklist Execution
@@ -846,10 +1191,10 @@ so that I can monitor multiple surveys at once.
 
 ✅ **Goals Defined**: Clear business and user goals established with measurable outcomes
 ✅ **Background Context**: Problem statement and solution approach documented
-✅ **Requirements Complete**: 26 Functional Requirements and 18 Non-Functional Requirements specified
+✅ **Requirements Complete**: 60 Functional Requirements and 18 Non-Functional Requirements specified
 ✅ **UI Goals Documented**: UX vision, interaction paradigms, core screens, accessibility (WCAG AA), branding, and platforms defined
 ✅ **Technical Assumptions Clear**: Repository structure (Monorepo), architecture (Monolithic Next.js), testing strategy, and all technology choices documented
-✅ **Epic Sequencing Logical**: 4 epics follow agile best practices with incremental value delivery
+✅ **Epic Sequencing Logical**: 7 epics follow agile best practices with incremental value delivery
 ✅ **Story Sizing Appropriate**: Stories scoped for single-session AI agent execution (2-4 hour junior developer equivalent)
 ✅ **Acceptance Criteria Testable**: All stories have clear, specific, and verifiable acceptance criteria
 ✅ **Dependencies Identified**: Stories within epics sequenced to avoid forward dependencies
@@ -915,6 +1260,6 @@ Reference the Technical Assumptions section for technology choices (Next.js 16, 
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-11-01
-**Status**: Complete - Ready for Architecture & UX Design
+**Document Version**: 2.0
+**Last Updated**: 2025-11-05
+**Status**: Complete - Expanded with Subscription & Marketing Features (Epics 6-7)

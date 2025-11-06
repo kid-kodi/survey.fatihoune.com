@@ -68,7 +68,7 @@ export async function GET(
       });
 
       // Calculate average number of questions answered per response
-      const totalAnswered = responses.reduce((sum, response) => {
+      const totalAnswered = responses.reduce((sum:number, response:any) => {
         const answers = response.answers as any[];
         // Count non-null, non-empty answers
         const answeredCount = answers.filter(

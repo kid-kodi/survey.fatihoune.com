@@ -12,6 +12,10 @@ export async function POST(
     const body = await request.json();
     const { answers } = body;
 
+    // Extract invitation token from URL query parameters
+    const url = new URL(request.url);
+    const invitationToken = url.searchParams.get("invitation");
+
     // Validate request
     if (!answers || !Array.isArray(answers)) {
       return NextResponse.json(
@@ -43,20 +47,20 @@ export async function POST(
     }
 
     // Validate required questions are answered
-    const requiredQuestions = survey.questions.filter((q) => q.required);
+    const requiredQuestions = survey.questions.filter((q: { required: boolean }) => q.required);
     const answeredQuestionIds = new Set(
       answers.filter((a) => a.answer !== null && a.answer !== "").map((a) => a.questionId)
     );
 
     const missingRequired = requiredQuestions.filter(
-      (q) => !answeredQuestionIds.has(q.id)
+      (q: { id: string }) => !answeredQuestionIds.has(q.id)
     );
 
     if (missingRequired.length > 0) {
       return NextResponse.json(
         {
           error: "Required questions not answered",
-          missingQuestions: missingRequired.map((q) => q.text),
+          missingQuestions: missingRequired.map((q: { text: string }) => q.text),
         },
         { status: 400 }
       );
@@ -76,8 +80,29 @@ export async function POST(
         answers: answers,
         ipAddress: ipAddress,
         userAgent: userAgent,
+        invitationToken: invitationToken, // Store invitation token if provided
       },
     });
+
+    // Update invitation status if token provided
+    if (invitationToken) {
+      try {
+        await prisma.surveyInvitation.updateMany({
+          where: {
+            token: invitationToken,
+            surveyId: survey.id,
+            status: { in: ["pending", "sent"] }, // Only update if not already completed
+          },
+          data: {
+            status: "completed",
+            completedAt: new Date(),
+          },
+        });
+      } catch (invitationError) {
+        // Log error but don't fail response submission
+        console.error("Failed to update invitation status:", invitationError);
+      }
+    }
 
     return NextResponse.json({
       success: true,

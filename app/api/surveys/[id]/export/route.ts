@@ -64,17 +64,17 @@ export async function GET(
     // Headers: Timestamp, Question 1, Question 2, ...
     const csvHeaders = [
       "Timestamp",
-      ...survey.questions.map((q) => q.text),
+      ...survey.questions.map((q: { text: string }) => q.text),
     ];
 
     // Build rows
-    const csvRows = survey.responses.map((response) => {
+    const csvRows = survey.responses.map((response:any) => {
       const row: any = {
         Timestamp: new Date(response.submittedAt).toISOString(),
       };
 
       // For each question, find the answer
-      survey.questions.forEach((question) => {
+      survey.questions.forEach((question:any) => {
         const answers = response.answers as any[];
         const answer = answers.find((a) => a.questionId === question.id);
 

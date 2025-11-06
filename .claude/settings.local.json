@@ -22,7 +22,8 @@
       "Bash(pnpm email:dev:*)",
       "Bash(pnpm lint:*)",
       "Bash(pnpm exec eslint:*)",
-      "Bash(pnpm exec tsc:*)"
+      "Bash(pnpm exec tsc:*)",
+      "Bash(pnpm test:*)"
     ],
     "deny": [],
     "ask": []

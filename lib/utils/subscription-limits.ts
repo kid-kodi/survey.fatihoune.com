@@ -6,10 +6,11 @@ export async function checkSurveyLimit(userId: string): Promise<{
   limit: number | 'unlimited';
   message?: string;
 }> {
-  // Get user's current plan
+  // Check if user is sys_admin (bypass all limits)
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: {
+    select: {
+      isSysAdmin: true,
       subscriptions: {
         where: { status: 'active' },
         include: { plan: { include: { limits: true } } },
@@ -18,6 +19,15 @@ export async function checkSurveyLimit(userId: string): Promise<{
       },
     },
   });
+
+  // sys_admin bypass: allow unlimited surveys
+  if (user?.isSysAdmin) {
+    return {
+      allowed: true,
+      current: 0,
+      limit: 'unlimited',
+    };
+  }
 
   if (!user || !user.subscriptions[0]) {
     return {
@@ -115,10 +125,11 @@ export async function checkOrganizationLimit(userId: string): Promise<{
   currentCount: number;
   limit: number | null;
 }> {
-  // Get user's current plan
+  // Check if user is sys_admin (bypass all limits)
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: {
+    select: {
+      isSysAdmin: true,
       subscriptions: {
         where: { status: 'active' },
         include: { plan: { include: { limits: true } } },
@@ -127,6 +138,15 @@ export async function checkOrganizationLimit(userId: string): Promise<{
       },
     },
   });
+
+  // sys_admin bypass: allow unlimited organizations
+  if (user?.isSysAdmin) {
+    return {
+      allowed: true,
+      currentCount: 0,
+      limit: null,
+    };
+  }
 
   if (!user || !user.subscriptions[0]) {
     return { allowed: false, reason: 'No active subscription plan', currentCount: 0, limit: 0 };
@@ -240,7 +260,8 @@ export async function checkMemberLimit(
         include: {
           role: true,
           user: {
-            include: {
+            select: {
+              isSysAdmin: true,
               subscriptions: {
                 where: { status: 'active' },
                 include: {
@@ -282,6 +303,15 @@ export async function checkMemberLimit(
       reason: 'Organization owner not found',
       currentCount: 0,
       limit: 0,
+    };
+  }
+
+  // sys_admin bypass: check if organization owner is sys_admin
+  if (ownerMember.user.isSysAdmin) {
+    return {
+      allowed: true,
+      currentCount: 0,
+      limit: null,
     };
   }
 

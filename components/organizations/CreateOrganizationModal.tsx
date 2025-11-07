@@ -27,7 +27,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Building2 } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
+import { DropdownMenuItem } from "../ui/dropdown-menu";
 
 const createOrganizationSchema = z.object({
   name: z
@@ -125,9 +126,11 @@ export function CreateOrganizationModal({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button>
-            <Building2 className="mr-2 h-4 w-4" />
-            {t("create_organization")}
+          <Button variant="link" className="gap-2 p-2 hover:no-underline">
+            <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
+              <Plus className="size-4" />
+            </div>
+            <div className="text-muted-foreground font-medium">{t("create_organization")}</div>
           </Button>
         )}
       </DialogTrigger>
@@ -135,7 +138,7 @@ export function CreateOrganizationModal({
         <DialogHeader>
           <DialogTitle>{t("create_organization")}</DialogTitle>
           <DialogDescription>
-            Create a new organization to collaborate with your team on surveys.
+            {t("create_organization_help_text")}
           </DialogDescription>
           {usage && usage.limit !== 'unlimited' && (
             <p className="text-sm text-gray-600 mt-2">

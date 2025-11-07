@@ -3,7 +3,6 @@
 import { authClient } from "@/lib/auth-client";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
-import { cn } from "@/lib/utils";
 
 import { useMedia } from "react-use";
 import { User } from "lucide-react";

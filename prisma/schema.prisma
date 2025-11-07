@@ -221,6 +221,10 @@ model User {
   waveCustomerId          String?                  @unique
   orangeCustomerId        String?                  @unique
   hasUsedTrial            Boolean                  @default(false)
+  isSysAdmin              Boolean                  @default(false)
+  emailPreferences        Json?                    @default("{\"marketing\": true, \"transactional\": true}")
+  unsubscribeToken        String?                  @unique
+  locale                  String?                  @default("en")
   sessions                Session[]
   accounts                Account[]
   surveys                 Survey[]
@@ -230,10 +234,16 @@ model User {
   subscriptions           Subscription[]
   payments                Payment[]
   usageTracking           UsageTracking[]
+  impersonationSessionsAsAdmin ImpersonationSession[] @relation("AdminSessions")
+  impersonationSessionsAsTarget ImpersonationSession[] @relation("TargetSessions")
+  adminActions            AdminAction[]
+  blogPosts               BlogPost[]
 
   @@unique([email])
   @@index([currentPlanId])
   @@index([stripeCustomerId])
+  @@index([isSysAdmin])
+  @@index([unsubscribeToken])
   @@map("user")
 }
 
@@ -310,6 +320,7 @@ model Subscription {
   currentPeriodEnd      DateTime?
   cancelAtPeriodEnd     Boolean            @default(false)
   graceEndsAt           DateTime?         // For migration grace period
+  metadata              Json?              // For admin custom limits and other metadata
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -432,4 +443,63 @@ enum ResourceType {
   survey
   organization
   user
+}
+
+// ============================================
+// SYSTEM ADMINISTRATOR MODELS
+// ============================================
+
+model ImpersonationSession {
+  id           String    @id @default(cuid())
+  adminId      String
+  targetUserId String
+  reason       String?
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  ipAddress    String?
+  userAgent    String?
+
+  admin        User      @relation("AdminSessions", fields: [adminId], references: [id], onDelete: Cascade)
+  targetUser   User      @relation("TargetSessions", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([targetUserId])
+  @@index([startedAt])
+}
+
+model AdminAction {
+  id             String   @id @default(cuid())
+  adminId        String
+  action         String   // "impersonate_user", "extend_subscription", etc.
+  targetResource String   // "user:123", "subscription:456"
+  metadata       Json     // Additional context
+  performedAt    DateTime @default(now())
+
+  admin          User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([performedAt])
+}
+
+// ============================================
+// BLOG MODELS
+// ============================================
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  excerpt     String
+  content     String   @db.Text
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  publishedAt DateTime?
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([slug])
+  @@index([publishedAt])
 }

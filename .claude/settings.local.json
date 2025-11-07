@@ -23,7 +23,10 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm exec eslint:*)",
       "Bash(pnpm exec tsc:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(pnpm list:*)",
+      "Bash(test:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

@@ -4,13 +4,16 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { Shield } from 'lucide-react';
 
 interface UsageData {
   current: number;
   limit: number | 'unlimited';
   percentage: number;
+  isSysAdmin?: boolean;
 }
 
 export function SurveyUsageWidget() {
@@ -33,13 +36,28 @@ export function SurveyUsageWidget() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('survey_usage')}</CardTitle>
+        <CardTitle className="flex items-center justify-between">
+          {t('survey_usage')}
+          {usage.isSysAdmin && (
+            <Badge variant="secondary" className="text-xs">
+              <Shield className="h-3 w-3 mr-1" />
+              Admin
+            </Badge>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        {isUnlimited ? (
-          <p className="text-lg font-semibold text-green-600">
-            {t('unlimited_surveys')}
-          </p>
+        {isUnlimited || usage.isSysAdmin ? (
+          <div>
+            <p className="text-lg font-semibold text-green-600">
+              {usage.isSysAdmin ? 'Unlimited (sys_admin bypass)' : t('unlimited_surveys')}
+            </p>
+            {usage.isSysAdmin && (
+              <p className="text-xs text-muted-foreground mt-1">
+                System administrators have unlimited survey access
+              </p>
+            )}
+          </div>
         ) : (
           <>
             <div className="mb-2">

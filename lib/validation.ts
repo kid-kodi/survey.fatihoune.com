@@ -10,10 +10,9 @@ import { z } from 'zod';
 // ==================== Contact Form ====================
 
 export const contactFormSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name too long'),
+  name: z.string().min(1, 'Name is required').min(2, 'Name must be at least 2 characters').max(100, 'Name too long'),
   email: z.string().email('Invalid email address'),
-  company: z.string().min(2, 'Company name must be at least 2 characters').max(100, 'Company name too long').optional().or(z.literal('')),
-  inquiryType: z.enum(['custom_plan', 'enterprise', 'general', 'support']),
+  subject: z.enum(['general', 'sales_custom', 'support', 'partnership']),
   message: z.string().min(10, 'Message must be at least 10 characters').max(2000, 'Message too long'),
 });
 

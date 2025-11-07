@@ -1,261 +1,109 @@
-'use client';
+import { getTranslations } from 'next-intl/server';
+import { MarketingLayout } from '@/components/layout/marketing-layout';
+import { ContactForm } from './contact-form';
+import { Mail, Linkedin, Twitter, Github } from 'lucide-react';
+import { config } from "@/lib/config";
+import type { Metadata } from "next";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { contactFormSchema, ContactFormData } from '@/lib/validation';
-import { Mail, Building2, User, MessageSquare, CheckCircle2, AlertCircle } from 'lucide-react';
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Metadata");
+  const baseUrl = config.app.url;
 
-export default function ContactPage() {
-  const t = useTranslations('Contact');
-  const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
-
-  const form = useForm<ContactFormData>({
-    resolver: zodResolver(contactFormSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      company: '',
-      inquiryType: 'custom_plan',
-      message: '',
+  return {
+    title: t("contact_title"),
+    description: t("contact_description"),
+    openGraph: {
+      title: t("contact_title"),
+      description: t("contact_description"),
+      url: `${baseUrl}/contact`,
+      siteName: t("site_name"),
+      images: [
+        {
+          url: `${baseUrl}/og-image.png`,
+          width: 1200,
+          height: 630,
+          alt: t("site_name"),
+        },
+      ],
+      locale: "en_US",
+      type: "website",
     },
-  });
+    twitter: {
+      card: "summary_large_image",
+      title: t("contact_title"),
+      description: t("contact_description"),
+      images: [`${baseUrl}/og-image.png`],
+    },
+    alternates: {
+      canonical: `${baseUrl}/contact`,
+    },
+  };
+}
 
-  async function onSubmit(data: ContactFormData) {
-    setIsSubmitting(true);
-    setSubmitStatus('idle');
-    setErrorMessage('');
-
-    try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setSubmitStatus('error');
-        setErrorMessage(result.error || t('error_generic'));
-        return;
-      }
-
-      setSubmitStatus('success');
-      form.reset();
-
-      // Redirect to pricing page after 3 seconds
-      setTimeout(() => {
-        router.push('/pricing');
-      }, 3000);
-    } catch (error) {
-      console.error('Contact form error:', error);
-      setSubmitStatus('error');
-      setErrorMessage(t('error_network'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+export default async function ContactPage() {
+  const t = await getTranslations('Contact');
 
   return (
-    <div className="container mx-auto px-4 py-16 max-w-3xl">
-      {/* Hero Section */}
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">{t('title')}</h1>
-        <p className="text-xl text-gray-600">{t('subtitle')}</p>
-      </div>
+    <MarketingLayout>
+      <div className="container mx-auto px-4 py-16 max-w-3xl">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold mb-4">{t('hero_heading')}</h1>
+          <p className="text-xl text-gray-600">{t('hero_subheading')}</p>
+        </div>
 
-      {/* Contact Form Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('form_title')}</CardTitle>
-          <CardDescription>{t('form_description')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {submitStatus === 'success' ? (
-            <div className="text-center py-8">
-              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-semibold mb-2">{t('success_title')}</h3>
-              <p className="text-gray-600 mb-4">{t('success_message')}</p>
-              <p className="text-sm text-gray-500">{t('redirecting')}</p>
+        {/* Contact Form */}
+        <ContactForm />
+
+        {/* Contact Information */}
+        <div className="mt-12 text-center">
+          <h2 className="text-2xl font-semibold mb-6">{t('other_ways_heading')}</h2>
+
+          <div className="flex flex-col items-center space-y-4">
+            {/* Email */}
+            <div className="flex items-center gap-3 text-gray-700">
+              <Mail className="h-5 w-5" />
+              <a
+                href="mailto:support@survey.fatihoune.com"
+                className="hover:text-blue-600 transition-colors"
+              >
+                support@survey.fatihoune.com
+              </a>
             </div>
-          ) : (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Name Field */}
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('field_name')}</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            {...field}
-                            placeholder={t('field_name_placeholder')}
-                            className="pl-10"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
-                {/* Email Field */}
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('field_email')}</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            {...field}
-                            type="email"
-                            placeholder={t('field_email_placeholder')}
-                            className="pl-10"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Company Field */}
-                <FormField
-                  control={form.control}
-                  name="company"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('field_company')}</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Building2 className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            {...field}
-                            placeholder={t('field_company_placeholder')}
-                            className="pl-10"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Inquiry Type Field */}
-                <FormField
-                  control={form.control}
-                  name="inquiryType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('field_inquiry_type')}</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={t('field_inquiry_type_placeholder')} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="custom_plan">
-                            {t('inquiry_type_custom_plan')}
-                          </SelectItem>
-                          <SelectItem value="enterprise">
-                            {t('inquiry_type_enterprise')}
-                          </SelectItem>
-                          <SelectItem value="general">
-                            {t('inquiry_type_general')}
-                          </SelectItem>
-                          <SelectItem value="support">
-                            {t('inquiry_type_support')}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Message Field */}
-                <FormField
-                  control={form.control}
-                  name="message"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('field_message')}</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <MessageSquare className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Textarea
-                            {...field}
-                            placeholder={t('field_message_placeholder')}
-                            className="pl-10 min-h-[150px]"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Error Message */}
-                {submitStatus === 'error' && (
-                  <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-red-800">{t('error_title')}</p>
-                      <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Submit Button */}
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? t('button_submitting') : t('button_submit')}
-                </Button>
-
-                {/* Privacy Notice */}
-                <p className="text-xs text-gray-500 text-center">
-                  {t('privacy_notice')}
-                </p>
-              </form>
-            </Form>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            {/* Social Media Links */}
+            <div className="flex gap-6 mt-6">
+              <a
+                href="https://linkedin.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 hover:text-blue-600 transition-colors"
+                aria-label="LinkedIn"
+              >
+                <Linkedin className="h-6 w-6" />
+              </a>
+              <a
+                href="https://twitter.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 hover:text-blue-600 transition-colors"
+                aria-label="Twitter"
+              >
+                <Twitter className="h-6 w-6" />
+              </a>
+              <a
+                href="https://github.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 hover:text-blue-600 transition-colors"
+                aria-label="GitHub"
+              >
+                <Github className="h-6 w-6" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </MarketingLayout>
   );
 }

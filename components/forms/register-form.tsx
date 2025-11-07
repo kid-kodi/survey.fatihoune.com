@@ -32,6 +32,7 @@ import { Loader2 } from "lucide-react";
 import { authClient, signUp } from "@/lib/auth-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { trackSignUp } from "@/lib/analytics";
 
 const formSchema = z.object({
   username: z.string().min(3),
@@ -76,6 +77,7 @@ export function RegisterForm({
     if (result.error) {
       toast.error(result.error.message as string);
     } else {
+      trackSignUp();
       router.push("/dashboard");
     }
 

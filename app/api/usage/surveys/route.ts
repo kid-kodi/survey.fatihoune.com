@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { checkSurveyLimit } from '@/lib/utils/subscription-limits';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
@@ -14,6 +15,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check if user is sys_admin
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isSysAdmin: true },
+    });
+
     const limitCheck = await checkSurveyLimit(session.user.id);
 
     const percentage =
@@ -25,6 +32,7 @@ export async function GET() {
       current: limitCheck.current,
       limit: limitCheck.limit,
       percentage,
+      isSysAdmin: user?.isSysAdmin || false,
     });
   } catch (error) {
     console.error('Fetch usage error:', error);

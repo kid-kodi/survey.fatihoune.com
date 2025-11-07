@@ -5,15 +5,25 @@ import "./globals.css";
 
 import { Toaster } from "@/components/ui/sonner"
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import { ImpersonationBannerWrapper } from "@/components/admin/impersonation-banner-wrapper";
+import { OrganizationSchema } from "@/components/seo/json-ld";
+import { GA4Script } from "@/components/analytics/ga4-script";
+import { PostHogProvider } from "@/components/analytics/posthog-provider";
+import { UTMTracker } from "@/components/analytics/utm-tracker";
+import { CookieConsent } from "@/components/privacy/cookie-consent";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -28,15 +38,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <OrganizationSchema />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NextIntlClientProvider>
-          <OrganizationProvider>
-            {children}
-            <Toaster />
-          </OrganizationProvider>
-        </NextIntlClientProvider>
+        <GA4Script />
+        <UTMTracker />
+        <PostHogProvider>
+          <NextIntlClientProvider>
+            <OrganizationProvider>
+              <ImpersonationBannerWrapper />
+              {children}
+              <Toaster />
+              <CookieConsent />
+            </OrganizationProvider>
+          </NextIntlClientProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

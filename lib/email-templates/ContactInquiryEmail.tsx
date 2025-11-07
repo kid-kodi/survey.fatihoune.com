@@ -4,13 +4,12 @@ import { BaseEmail, emailStyles } from './BaseEmail';
 import { BaseEmailProps } from './types';
 
 /**
- * Email sent to sales team when a customer submits a contact inquiry
+ * Email sent to support team when a customer submits a contact inquiry
  */
 export interface ContactInquiryEmailProps extends BaseEmailProps {
   name: string;
   email: string;
-  company?: string;
-  inquiryType: 'custom_plan' | 'enterprise' | 'general' | 'support';
+  subject: 'general' | 'sales_custom' | 'support' | 'partnership';
   message: string;
   timestamp: string;
 }
@@ -18,17 +17,16 @@ export interface ContactInquiryEmailProps extends BaseEmailProps {
 export function ContactInquiryEmail({
   name,
   email,
-  company,
-  inquiryType,
+  subject,
   message,
   timestamp,
   locale = 'en',
 }: ContactInquiryEmailProps) {
-  const inquiryTypeLabels = {
-    custom_plan: locale === 'fr' ? 'Plan Personnalisé' : 'Custom Plan',
-    enterprise: locale === 'fr' ? 'Entreprise' : 'Enterprise',
-    general: locale === 'fr' ? 'Général' : 'General',
+  const subjectLabels = {
+    general: locale === 'fr' ? 'Demande Générale' : 'General Inquiry',
+    sales_custom: locale === 'fr' ? 'Plan Personnalisé/Ventes' : 'Sales/Custom Plan',
     support: locale === 'fr' ? 'Support' : 'Support',
+    partnership: locale === 'fr' ? 'Partenariat' : 'Partnership',
   };
 
   return (
@@ -98,29 +96,6 @@ export function ContactInquiryEmail({
                 </a>
               </td>
             </tr>
-            {company && (
-              <tr>
-                <td
-                  style={{
-                    padding: '8px 0',
-                    fontWeight: '600',
-                    color: '#64748b',
-                    fontSize: '14px',
-                  }}
-                >
-                  {locale === 'fr' ? 'Société' : 'Company'}:
-                </td>
-                <td
-                  style={{
-                    padding: '8px 0',
-                    color: '#0f172a',
-                    fontSize: '14px',
-                  }}
-                >
-                  {company}
-                </td>
-              </tr>
-            )}
             <tr>
               <td
                 style={{
@@ -130,7 +105,7 @@ export function ContactInquiryEmail({
                   fontSize: '14px',
                 }}
               >
-                {locale === 'fr' ? 'Type de demande' : 'Inquiry Type'}:
+                {locale === 'fr' ? 'Sujet' : 'Subject'}:
               </td>
               <td
                 style={{
@@ -139,7 +114,7 @@ export function ContactInquiryEmail({
                   fontSize: '14px',
                 }}
               >
-                {inquiryTypeLabels[inquiryType]}
+                {subjectLabels[subject]}
               </td>
             </tr>
             <tr>

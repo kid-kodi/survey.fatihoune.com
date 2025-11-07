@@ -10,8 +10,8 @@ import { ContactConfirmationEmail } from '@/lib/email-templates/ContactConfirmat
  * Handles contact form submissions
  * - Validates form data
  * - Applies rate limiting (5 requests per minute per IP)
- * - Sends email to sales team
- * - Sends confirmation email to user
+ * - Sends email to support team
+ * - Sends auto-reply confirmation email to user
  */
 export async function POST(req: NextRequest) {
   try {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, email, company, inquiryType, message } = validationResult.data;
+    const { name, email, subject, message } = validationResult.data;
 
     // Get locale from headers or default to 'en'
     const locale = req.headers.get('accept-language')?.startsWith('fr') ? 'fr' : 'en';
@@ -55,24 +55,23 @@ export async function POST(req: NextRequest) {
       timeStyle: 'short',
     });
 
-    // Send email to sales team
-    const salesEmail = process.env.SALES_EMAIL || 'contact@survey.fatihoune.com';
-    const salesEmailResult = await sendEmail({
-      to: salesEmail,
-      subject: `New Contact Inquiry: ${inquiryType.replace('_', ' ').toUpperCase()} from ${name}`,
+    // Send email to support team
+    const supportEmail = process.env.SUPPORT_EMAIL || 'support@survey.fatihoune.com';
+    const supportEmailResult = await sendEmail({
+      to: supportEmail,
+      subject: `New Contact Form Submission: ${subject.replace('_', ' ').toUpperCase()} from ${name}`,
       react: ContactInquiryEmail({
         name,
         email,
-        company,
-        inquiryType,
+        subject,
         message,
         timestamp,
         locale,
       }),
     });
 
-    if (!salesEmailResult.success) {
-      console.error('Failed to send email to sales team:', salesEmailResult.error);
+    if (!supportEmailResult.success) {
+      console.error('Failed to send email to support team:', supportEmailResult.error);
       return NextResponse.json(
         {
           error: 'Failed to send inquiry. Please try again later.',
@@ -91,7 +90,7 @@ export async function POST(req: NextRequest) {
           : 'We received your inquiry',
       react: ContactConfirmationEmail({
         name,
-        inquiryType,
+        subject,
         locale,
       }),
     });

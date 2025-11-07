@@ -8,19 +8,19 @@ import { BaseEmailProps } from './types';
  */
 export interface ContactConfirmationEmailProps extends BaseEmailProps {
   name: string;
-  inquiryType: 'custom_plan' | 'enterprise' | 'general' | 'support';
+  subject: 'general' | 'sales_custom' | 'support' | 'partnership';
 }
 
 export function ContactConfirmationEmail({
   name,
-  inquiryType,
+  subject,
   locale = 'en',
 }: ContactConfirmationEmailProps) {
-  const inquiryTypeLabels = {
-    custom_plan: locale === 'fr' ? 'Plan Personnalisé' : 'Custom Plan',
-    enterprise: locale === 'fr' ? 'Entreprise' : 'Enterprise',
+  const subjectLabels = {
     general: locale === 'fr' ? 'Demande Générale' : 'General Inquiry',
+    sales_custom: locale === 'fr' ? 'Plan Personnalisé/Ventes' : 'Sales/Custom Plan',
     support: locale === 'fr' ? 'Support Technique' : 'Technical Support',
+    partnership: locale === 'fr' ? 'Partenariat' : 'Partnership',
   };
 
   return (
@@ -62,7 +62,7 @@ export function ContactConfirmationEmail({
             color: '#3b82f6',
           }}
         >
-          {inquiryTypeLabels[inquiryType]}
+          {subjectLabels[subject]}
         </Text>
       </div>
 
@@ -72,7 +72,7 @@ export function ContactConfirmationEmail({
           : 'Our team is reviewing your message and will respond to you as soon as possible, typically within 24 business hours.'}
       </Text>
 
-      {inquiryType === 'custom_plan' && (
+      {subject === 'sales_custom' && (
         <div
           style={{
             backgroundColor: '#eff6ff',
